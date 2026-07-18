@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vanguard by Pyforge — Secure access & approvals</title>
+  <style>
+    :root { --ink:#ebf7e6; --muted:#91a391; --line:#203626; --canvas:#050805; --card:#0b110d; --navy:#081008; --blue:#a7ff2e; --blue-weak:#142311; --mint:#7cff23; --mint-weak:#122111; --amber:#d8a53b; --amber-weak:#211b0c; --rose:#ff667a; --rose-weak:#271116; --shadow:0 20px 48px rgba(0,0,0,.45); }
+    * { box-sizing:border-box } body { margin:0; color:var(--ink); background:radial-gradient(circle at 15% 0,#122a14 0,transparent 29%),radial-gradient(circle at 89% 20%,#152312 0,transparent 27%),var(--canvas); font:14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button,input { font:inherit } button { cursor:pointer } .shell { width:min(1180px, calc(100% - 40px)); margin:auto; }
+    .topbar { height:72px; display:flex; align-items:center; justify-content:space-between; gap:20px; } .brand { display:flex; gap:11px; align-items:center; font-weight:750; font-size:20px; letter-spacing:-.7px; color:#fff; } .brand-mark { width:38px; height:38px; display:grid; place-items:center; } .brand-mark img { width:38px; height:38px; display:block; } .brand-name { display:flex; flex-direction:column; line-height:1; gap:4px; } .brand-name small { color:#99ad97; font-size:9px; letter-spacing:1.25px; text-transform:uppercase; font-weight:750; }
+    .top-actions,.health { display:flex; align-items:center; gap:10px } .health { color:#aee78e; font-size:12px; font-weight:650; } .dot { width:8px; height:8px; border-radius:50%; background:#a7ff2e; box-shadow:0 0 0 4px #a7ff2e22,0 0 12px #a7ff2e99; } .avatar { width:33px; height:33px; border-radius:50%; background:#18281a; color:#caff82; border:1px solid #365b31; display:grid; place-items:center; font-weight:750; font-size:12px; }
+    .hero { color:white; background:radial-gradient(circle at 77% 20%,#315a22 0,transparent 29%),linear-gradient(120deg,#071008,#0d1d0b 62%,#101d0d); border:1px solid #31562b; border-radius:24px; padding:48px; display:flex; justify-content:space-between; gap:30px; overflow:hidden; position:relative; box-shadow:0 18px 50px #000; } .hero:after { content:""; position:absolute; width:400px; height:400px; right:-150px; bottom:-250px; border:1px solid #a7ff2e35; border-radius:50%; box-shadow:0 0 0 46px #a7ff2e0b,0 0 0 92px #a7ff2e08; } .eyebrow { color:#b7ff54; text-transform:uppercase; font-weight:750; letter-spacing:1.45px; font-size:11px; } h1 { font-size:clamp(30px,4vw,46px); line-height:1.07; letter-spacing:-1.7px; margin:12px 0 13px; max-width:620px; } .hero p { color:#bfd2ba; max-width:550px; margin:0; font-size:16px; } .hero-stats { display:flex; gap:30px; margin-top:31px; } .hero-stat strong { font-size:19px; display:block; } .hero-stat span { color:#a1b99d; font-size:12px; } .trust-card { z-index:1; align-self:flex-end; width:255px; padding:20px; border:1px solid #a7ff2e27; background:#071007b8; border-radius:16px; backdrop-filter:blur(10px); } .trust-card h3 { font-size:12px; letter-spacing:.8px; text-transform:uppercase; color:#a1b99d; margin:0 0 16px; } .trust-row { display:flex; justify-content:space-between; border-top:1px solid #ffffff14; padding:10px 0 0; margin-top:10px; color:#a1b99d; font-size:12px; } .trust-row b { color:#c8ff87; }
+    .layout { display:grid; grid-template-columns:1.05fr .95fr; gap:20px; margin:22px 0; } .card { background:linear-gradient(145deg,#0d140e,#080d09); border:1px solid #213725; border-radius:18px; padding:25px; box-shadow:0 8px 22px #00000022; } .card-head { display:flex; gap:14px; align-items:flex-start; justify-content:space-between; margin-bottom:21px; } h2 { font-size:17px; letter-spacing:-.3px; margin:0; color:#f3fbea; } .sub { color:#8ea08d; margin:4px 0 0; font-size:13px; } .tag { font-size:10px; border-radius:999px; padding:5px 8px; text-transform:uppercase; letter-spacing:.7px; font-weight:800; white-space:nowrap; } .tag.live { color:#b4ff79; background:#132510; } .tag.secure { color:#c6ff79; background:#1a3115; }
+    label { color:#c0d4bc; font-size:12px; font-weight:700; display:block; margin-bottom:7px; } input { width:100%; border:1px solid #2a442e; padding:12px 13px; border-radius:10px; background:#071008; outline:none; color:#effde7; transition:.18s; } input:focus { background:#09120a; border-color:#a7ff2e; box-shadow:0 0 0 4px #a7ff2e18; } .input-row { display:grid; grid-template-columns:1fr auto; gap:9px; } .button { border:0; border-radius:10px; padding:12px 15px; font-weight:750; transition:.18s transform,.18s background; } .button:hover { transform:translateY(-1px) } .primary { background:linear-gradient(135deg,#c2ff50,#83e920); color:#071008; box-shadow:0 8px 20px #a7ff2e2a; } .secondary { background:#1b3216; color:#c4ff71; border:1px solid #3c6731; } .quiet { background:#152016; color:#c4d8bf; border:1px solid #29422c; } .danger { background:#2a1216; color:#ff9aa7; border:1px solid #5a2831; } .button.small { padding:8px 10px; border-radius:8px; font-size:12px; } .button.wide { width:100%; margin-top:11px; }
+    .method-grid { display:grid; grid-template-columns:1fr 1fr; gap:11px; margin:19px 0 4px; } .method { border:1px solid #29442c; border-radius:13px; padding:15px; background:linear-gradient(135deg,#0c150e,#0a100b); } .method .icon { width:31px; height:31px; border-radius:9px; display:grid; place-items:center; margin-bottom:12px; background:#1b3216; color:#b9ff54; } .method h3 { margin:0 0 3px; font-size:13px; color:#e9f8e2; } .method p { margin:0; color:#8ea08d; font-size:12px; } .method button { margin-top:12px; width:100%; }
+    .approval { border:1px solid #29442c; border-radius:14px; padding:17px; background:linear-gradient(135deg,#0c150e,#0a100b); } .approval + .approval { margin-top:10px; } .approval-top { display:flex; justify-content:space-between; gap:10px; align-items:start; } .approval h3 { margin:0; font-size:14px; color:#e9f8e2; } .approval p { color:#8ea08d; font-size:12px; margin:3px 0 11px; } .approval-foot { display:flex; justify-content:space-between; align-items:center; gap:9px; color:#8ea08d; font-size:12px; } .approval-actions { display:flex; gap:6px; flex-wrap:wrap; } .approval.empty { border-style:dashed; background:#0a100b; color:#91a391; text-align:center; padding:30px; }
+    .lower { display:grid; grid-template-columns:1.38fr .62fr; gap:20px; margin-bottom:30px; } .table { width:100%; border-collapse:collapse; } .table th { text-align:left; font-size:10px; color:#81967d; letter-spacing:.8px; text-transform:uppercase; padding:0 7px 9px; } .table td { font-size:12px; border-top:1px solid #1c2f20; padding:12px 7px; color:#a8bca5; } .table td:first-child { font-weight:700; color:#dff1d8; } .receipt { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:#8ea08d; } .tier { font-size:10px; font-weight:800; padding:3px 7px; border-radius:999px; background:#1a3116; color:#c8ff78; } .tier.critical { background:#2d1519; color:#ff9baa; }
+    .fallback { background:linear-gradient(145deg,#171506,#0f0e07); border-color:#524619; } .fallback .code { font:700 26px/1 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:4px; color:#d4ff6b; margin:18px 0 6px; text-shadow:0 0 15px #a7ff2e50; } .fallback .timer { font-size:12px; color:#bca95f; } .hidden { display:none!important } .notice { position:fixed; right:22px; bottom:22px; width:min(370px,calc(100% - 44px)); padding:14px 16px; border-radius:12px; background:#122944; color:#fff; box-shadow:0 18px 44px #17283e3a; font-size:13px; transform:translateY(100px); opacity:0; transition:.25s; z-index:5; } .notice.show { opacity:1; transform:none; } .notice.error { background:#5b1a28; } .notice.success { background:#164321; } .codes { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:12px; } .codes span { color:#dcff8a; font:700 11px ui-monospace,SFMono-Regular,Menlo,monospace; background:#292411; padding:5px; border-radius:5px; }
+    .backdrop { position:fixed; inset:0; background:#010402ea; display:flex; align-items:center; justify-content:center; z-index:20; padding:20px; } .backdrop.hidden { display:none!important } .proximity-card { width:min(420px,100%); background:linear-gradient(160deg,#0d160e,#070c08); border:1px solid #355c2c; border-radius:20px; padding:28px; text-align:center; box-shadow:0 30px 80px #000; } .proximity-card .tag { margin-bottom:14px; } .proximity-card h2 { margin:0 0 6px; } .proximity-card p.sub { margin-bottom:18px; } .qr-frame { background:#fff; border-radius:14px; padding:14px; display:inline-block; box-shadow:0 0 0 6px #a7ff2e22,0 0 40px #a7ff2e30; } #proximityQr { width:188px; height:188px; display:flex; align-items:center; justify-content:center; } .proximity-hash { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; color:#7cff9a; background:#0c1a0d; border:1px solid #23431f; border-radius:8px; padding:8px; margin:16px 0 4px; word-break:break-all; } .proximity-status { display:flex; align-items:center; justify-content:center; gap:9px; margin:16px 0 6px; font-weight:750; font-size:13px; color:#cdeec0; } .proximity-status .spinner { width:14px; height:14px; border-radius:50%; border:2px solid #244a1d; border-top-color:#a7ff2e; animation:spin .8s linear infinite; } .proximity-status.ok .spinner { display:none } .proximity-status.ok { color:#b9ff54; } @keyframes spin { to { transform:rotate(360deg) } } .proximity-timer { color:#8ea08d; font-size:12px; margin-bottom:16px; } .proximity-actions { display:flex; gap:8px; } .proximity-actions .button { flex:1; }
+    .mobile-verify { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; } .mobile-verify .proximity-card { width:min(440px,100%); }
+    @media (max-width:830px) { .hero { padding:30px; display:block } .trust-card { width:auto; margin-top:26px; } .layout,.lower { grid-template-columns:1fr; } } @media (max-width:540px) { .shell { width:min(100% - 24px,1180px) } .topbar { height:62px } .health { display:none } .hero { border-radius:17px; padding:25px; } .hero-stats { gap:17px } .hero-stat strong { font-size:16px } .card { padding:19px } .method-grid { grid-template-columns:1fr; } .input-row { grid-template-columns:1fr; } .table th:nth-child(2),.table td:nth-child(2),.table th:nth-child(5),.table td:nth-child(5) { display:none; } }
+    /* ---- motion ---- */
+    @keyframes fadeSlideIn { from { opacity:0; transform:translateY(10px) scale(.99); } to { opacity:1; transform:none; } }
+    @keyframes rowFadeIn { from { opacity:0; } to { opacity:1; } }
+    @keyframes pulseDot { 0%,100% { box-shadow:0 0 0 4px #a7ff2e22,0 0 12px #a7ff2e99; } 50% { box-shadow:0 0 0 9px #a7ff2e33,0 0 22px #a7ff2ecc; } }
+    @keyframes popIn { 0% { transform:scale(.55); opacity:0; } 65% { transform:scale(1.08); opacity:1; } 100% { transform:scale(1); } }
+    @keyframes shimmerBar { 0% { background-position:0 0; } 100% { background-position:40px 0; } }
+    @keyframes dropIn { from { opacity:0; transform:translateY(-14px); } to { opacity:1; transform:none; } }
+    @keyframes resolvedGlow { 0% { box-shadow:0 0 0 0 #a7ff2e00; } 30% { box-shadow:0 0 0 6px #a7ff2e33; } 100% { box-shadow:0 0 0 0 #a7ff2e00; } }
+    @keyframes resolvedGlowDeny { 0% { box-shadow:0 0 0 0 #ff667a00; } 30% { box-shadow:0 0 0 6px #ff667a33; } 100% { box-shadow:0 0 0 0 #ff667a00; } }
+    @keyframes collapseOut { 0% { opacity:1; max-height:220px; transform:scale(1); margin-top:0; } 60% { opacity:0; transform:scale(.97); } 100% { opacity:0; max-height:0; transform:scale(.97); margin-top:0; padding-top:0; padding-bottom:0; border-width:0; } }
+    @keyframes badgePop { 0% { transform:scale(.7); opacity:0; } 60% { transform:scale(1.06); opacity:1; } 100% { transform:scale(1); } }
+    @keyframes ripple { from { transform:scale(0); opacity:.45; } to { transform:scale(2.6); opacity:0; } }
+    @keyframes checkDraw { from { stroke-dashoffset:24; } to { stroke-dashoffset:0; } }
+    @media (prefers-reduced-motion: reduce) { * { animation-duration:.001ms!important; animation-iteration-count:1!important; transition-duration:.001ms!important; } }
+
+    .dot { animation:pulseDot 2.4s ease-in-out infinite; }
+    .topbar { animation:dropIn .5s cubic-bezier(.22,1,.36,1) both; }
+    .hero { animation:fadeSlideIn .6s cubic-bezier(.22,1,.36,1) both; animation-delay:.06s; }
+    .approval { animation:fadeSlideIn .42s cubic-bezier(.22,1,.36,1) both; transition:border-color .25s, transform .2s, box-shadow .2s; overflow:hidden; }
+    .approval:hover { border-color:#3c6731; transform:translateY(-1px); }
+    .approval.resolved-approve { animation:resolvedGlow 1.1s ease both; }
+    .approval.resolved-deny { animation:resolvedGlowDeny 1.1s ease both; }
+    .approval.leaving { animation:collapseOut .42s cubic-bezier(.4,0,.2,1) both; pointer-events:none; }
+    .ledger-row { animation:rowFadeIn .35s ease both; }
+    .card { animation:fadeSlideIn .5s cubic-bezier(.22,1,.36,1) both; }
+    .layout .card:nth-of-type(1) { animation-delay:.12s; } .layout .card:nth-of-type(2) { animation-delay:.18s; }
+    .lower .card:nth-of-type(1) { animation-delay:.22s; } .lower .card:nth-of-type(2) { animation-delay:.26s; }
+    .method { transition:transform .2s, border-color .2s; } .method:hover { transform:translateY(-2px); border-color:#3c6731; }
+    .button { position:relative; overflow:hidden; transition:transform .15s cubic-bezier(.22,1,.36,1), background .18s, box-shadow .18s; }
+    .button:active { transform:translateY(0) scale(.96); }
+    .button .ripple { position:absolute; border-radius:50%; width:16px; height:16px; background:currentColor; opacity:.4; pointer-events:none; animation:ripple .5s ease-out forwards; }
+    .tag { transition:background .25s, color .25s; }
+    .approval-top .tag { animation:popIn .3s cubic-bezier(.22,1,.36,1) both; }
+    .notice { transition:opacity .3s cubic-bezier(.22,1,.36,1), transform .3s cubic-bezier(.22,1,.36,1); }
+    .proximity-status.ok { animation:popIn .35s cubic-bezier(.22,1,.36,1); }
+    .qr-frame { transition:box-shadow .3s; } #proximityBackdrop:not(.hidden) .qr-frame { box-shadow:0 0 0 6px #a7ff2e33,0 0 55px #a7ff2e45; }
+    .backdrop { transition:opacity .2s; } .backdrop:not(.hidden) .proximity-card { animation:popIn .3s cubic-bezier(.22,1,.36,1) both; }
+
+    /* ---- approver roster + quorum bar ---- */
+    .roster { display:flex; flex-direction:column; gap:6px; margin-bottom:16px; padding:13px 14px; border:1px solid #223a25; border-radius:12px; background:#0a110b; }
+    .role-row { display:flex; align-items:center; gap:8px; font-size:12px; color:#a8bca5; animation:rowFadeIn .3s ease both; }
+    .role-row span:nth-child(2) { flex:1; }
+    .role-row b { color:#e9f8e2; font-weight:750; }
+    .role-dot { width:6px; height:6px; border-radius:50%; flex:none; }
+
+    /* ---- live role badge (next to the name/alias field) ---- */
+    .role-badge { display:inline-flex; align-items:center; gap:5px; font-size:10px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; padding:5px 9px; border-radius:999px; margin-top:8px; animation:badgePop .3s cubic-bezier(.22,1,.36,1) both; transition:background .2s,color .2s; }
+    .role-badge.primary { background:#142311; color:#b9ff54; box-shadow:0 0 0 1px #3c6731; }
+    .role-badge.secondary { background:#211b0c; color:#e6c064; box-shadow:0 0 0 1px #6b551f; }
+    .role-badge.none { background:#1a1418; color:#c98d97; box-shadow:0 0 0 1px #4a2a30; }
+    #inviteRow:not(.hidden) { animation:fadeSlideIn .3s cubic-bezier(.22,1,.36,1) both; }
+    #inviteRow input { margin-top:2px; }
+    .role-primary .role-dot { background:#a7ff2e; box-shadow:0 0 8px #a7ff2e99; }
+    .role-secondary .role-dot { background:#d8a53b; box-shadow:0 0 6px #d8a53b88; }
+    .role-note { font-size:11px; color:#8ea08d; margin:2px 0 10px; }
+    .quorum-track { height:5px; border-radius:99px; background:#152016; overflow:hidden; margin-bottom:11px; }
+    .quorum-fill { height:100%; border-radius:99px; background:linear-gradient(90deg,#7cff23,#a7ff2e); background-size:40px 100%; transition:width .5s cubic-bezier(.22,1,.36,1); animation:shimmerBar 1s linear infinite; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <nav class="topbar"><div class="brand"><span class="brand-mark"><img src="vanguard-logo.svg" alt="Vanguard security shield"></span><span class="brand-name">Vanguard<small>by Pyforge</small></span></div><div class="top-actions"><div class="health"><span class="dot"></span><span id="networkState">Secure channel online</span></div><a href="?admin=1" target="_blank" rel="noopener" class="button quiet small" style="text-decoration:none">Admin</a><div class="avatar">VP</div></div></nav>
+    <section class="hero"><div><div class="eyebrow">Vanguard by Pyforge · Identity, without passwords</div><h1>Prove it’s you.<br>Approve what’s real.</h1><p>Vanguard gives people a secure, simple way to sign in and teams a clear way to approve high-stakes work.</p><div class="hero-stats"><div class="hero-stat"><strong>Passkey-first</strong><span>No password to steal</span></div><div class="hero-stat"><strong>2 of 3</strong><span>For critical approvals</span></div><div class="hero-stat"><strong>60 sec</strong><span>Single-use challenge</span></div></div></div><aside class="trust-card"><h3>Security status</h3><div class="trust-row"><span>Device verification</span><b>Ready</b></div><div class="trust-row"><span>Live approvals</span><b id="liveStatus">Connecting</b></div><div class="trust-row"><span>Fallback access</span><b>Available</b></div></aside></section>
+
+    <section class="layout">
+      <article class="card"><div class="card-head"><div><h2>Your secure workspace</h2><p class="sub">Register once, then sign in with your device.</p></div><span class="tag secure">Passkey protected</span></div><label for="username">Your name or work alias</label><div class="input-row"><input id="username" autocomplete="username webauthn" placeholder="e.g. alex@pyforge" oninput="queueRoleCheck()"><button class="button secondary" onclick="registerPasskey()">Set up passkey</button></div><span id="roleBadge" class="role-badge hidden"></span><div id="inviteRow" class="hidden" style="margin-top:10px"><label for="inviteToken">Admin invite token <span style="font-weight:400;text-transform:none;color:#8ea08d">— required once for this privileged role</span></label><input id="inviteToken" placeholder="paste the token an admin gave you" autocomplete="off"></div><div class="method-grid"><div class="method"><div class="icon">⌁</div><h3>Sign in securely</h3><p>Use Face ID, fingerprint, or your device PIN.</p><button class="button primary small" onclick="signIn()">Sign in with passkey</button></div><div class="method"><div class="icon">↯</div><h3>Request approval</h3><p>Ask the right people in real time for a critical action.</p><button class="button secondary small" onclick="requestApproval()">Request approval</button></div></div><button class="button danger small" onclick="reportCompromise()">This wasn’t me — lock my sessions</button></article>
+
+      <article class="card"><div class="card-head"><div><h2>Live approval queue</h2><p class="sub">Open Vanguard on an approver’s device to decide in real time.</p></div><span class="tag live">Live</span></div><div id="approverRoster" class="roster"></div><div id="approvalList"><div class="approval empty">No requests waiting for approval.<br><span class="sub">Create a secure transfer request to see the two-device flow.</span></div></div></article>
+    </section>
+
+    <section class="lower"><article class="card"><div class="card-head"><div><h2>Signed activity</h2><p class="sub">Every approved action leaves a traceable receipt.</p></div><span class="tag secure">Audit log</span></div><div style="overflow:auto"><table class="table"><thead><tr><th>Action</th><th>Time</th><th>Approved by</th><th>Trust level</th><th>Receipt</th></tr></thead><tbody id="ledger"><tr><td colspan="5" style="text-align:center;padding:24px;color:#8795a8;font-weight:400">Your verified activity will appear here.</td></tr></tbody></table></div></article>
+      <aside class="card fallback"><div class="card-head"><div><h2>Offline fallback</h2><p class="sub">A local code is ready if the live channel drops.</p></div><span class="tag" style="color:#94600b;background:#fff0cf">Offline ready</span></div><div class="code" id="totpCode">— — — — — —</div><div class="timer" id="totpTimer">Register a device to generate your local code.</div><button class="button quiet wide" onclick="toggleFallback()">Use a fallback code</button><div id="fallbackForm" class="hidden" style="margin-top:12px"><label for="fallbackInput">6-digit verification code</label><div class="input-row"><input id="fallbackInput" inputmode="numeric" maxlength="6" placeholder="000000"><button class="button secondary" onclick="verifyFallback()">Verify</button></div></div><div id="recoveryCodes" class="hidden"><p class="sub" style="color:#8b610f;margin-top:14px">Save these one-time recovery codes somewhere safe.</p><div class="codes" id="recoveryList"></div></div></aside></section>
+  </main><div id="notice" class="notice"></div>
+
+  <!-- Dual-custody QR handshake: shown on the approver's ORIGINAL device while it waits for a SECOND, physically separate device to complete the passkey ceremony. -->
+  <div id="proximityBackdrop" class="backdrop hidden">
+    <div class="proximity-card">
+      <span class="tag secure">Dual-custody check</span>
+      <h2 id="proximityTitle">Scan to verify on a second device</h2>
+      <p class="sub">This decision can’t be signed on the device that made it. Scan this code with your phone’s camera and confirm there instead.</p>
+      <div class="qr-frame"><div id="proximityQr"></div></div>
+      <div class="proximity-hash" id="proximityHash">action hash: —</div>
+      <div class="proximity-status" id="proximityStatus"><span class="spinner"></span><span>Waiting for second device…</span></div>
+      <div class="proximity-timer" id="proximityTimer">Code expires in 90s</div>
+      <div class="proximity-actions"><button class="button quiet" onclick="cancelProximity()">Cancel</button></div>
+    </div>
+  </div>
+
+  <!-- Second-device landing view: opened when a phone scans the QR (URL carries ?proximity=TOKEN). -->
+  <div id="mobileVerify" class="mobile-verify hidden">
+    <div class="proximity-card">
+      <span class="tag secure">Second-device verification</span>
+      <h2 id="mobileTitle">Confirm this decision</h2>
+      <p class="sub" id="mobileSub">Loading the request this device is being asked to confirm…</p>
+      <div id="mobileDetails"></div>
+      <button class="button primary wide" id="mobileVerifyBtn" onclick="verifyOnThisDevice()">Verify with this device’s passkey</button>
+      <div class="proximity-timer" id="mobileTimer"></div>
+    </div>
+  </div>
+
+  <!-- Admin panel: open with ?admin=1. Never touches vault approvals -- only
+       lets whoever holds ADMIN_BOOTSTRAP_SECRET see/reissue registration
+       invites for the four privileged roles, so nobody has to read server
+       console logs to onboard the CEO or a backup approver. -->
+  <div id="adminView" class="mobile-verify hidden">
+    <div class="proximity-card" style="width:min(560px,100%);text-align:left">
+      <span class="tag secure">Admin — role provisioning</span>
+      <h2 style="margin-top:6px">Privileged approver invites</h2>
+      <p class="sub" style="margin-bottom:18px">This unlocks nothing on its own — it only lets you view or reissue single-use registration tokens for the CEO and the 3 backup approvers.</p>
+      <div id="adminLocked">
+        <label for="adminSecretInput">X-Admin-Secret</label>
+        <div class="input-row"><input id="adminSecretInput" type="password" placeholder="paste the secret printed at server startup"><button class="button primary" onclick="unlockAdmin()">Unlock</button></div>
+        <p class="sub" style="margin-top:8px">Stored only in this browser, never sent anywhere but this server.</p>
+      </div>
+      <div id="adminUnlocked" class="hidden">
+        <div id="inviteTable"></div>
+        <button class="button quiet wide" onclick="loadInvites()">Refresh</button>
+        <button class="button quiet wide" onclick="lockAdmin()">Forget secret &amp; lock</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = location.protocol === 'file:' ? 'http://localhost:8080' : location.origin;
+    let totpSecret = null, liveSocket = null, keepAlive = null, approverRoles = null;
+    async function loadApproverRoles() { try { approverRoles = await json('/api/approvers'); renderApproverRoster(); } catch(_){} }
+    function renderApproverRoster() {
+        const el = $('approverRoster'); if (!el || !approverRoles) return;
+        el.innerHTML = `<div class="role-row role-primary" style="animation-delay:0ms"><span class="role-dot"></span><span>Primary approver</span><b>${esc(approverRoles.primary_approver)}</b></div>` +
+            approverRoles.secondary_approvers.map((name, i) => `<div class="role-row role-secondary" style="animation-delay:${(i + 1) * 60}ms"><span class="role-dot"></span><span>Backup approver</span><b>${esc(name)}</b></div>`).join('') +
+            `<p class="sub" style="margin:10px 0 0">Everyone else is a non-approver and can’t decide vault transactions, no matter what a client sends.</p>`;
+    }
+    const $ = id => document.getElementById(id);
+    const esc = value => String(value ?? '').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+
+    // ---- Live "what can I approve" badge -----------------------------
+    // Purely a UX convenience so people can see their own standing before
+    // they try to act. The server never trusts this -- require_approver_role()
+    // re-checks from scratch on every real decision.
+    let roleCheckTimer = null;
+    function queueRoleCheck() {
+        clearTimeout(roleCheckTimer);
+        const badge = $('roleBadge');
+        const inviteRow = $('inviteRow');
+        const name = $('username').value.trim();
+        if (!name) { badge.classList.add('hidden'); inviteRow.classList.add('hidden'); return; }
+        roleCheckTimer = setTimeout(async () => {
+            try {
+                const info = await json(`/api/approver-role/${encodeURIComponent(name)}`);
+                const labels = { primary: '★ Primary approver — can approve alone', secondary: '◆ Backup approver — after primary\u2019s window', none: '● Not an approver — vault decisions blocked' };
+                badge.className = `role-badge ${info.role}`;
+                badge.textContent = labels[info.role] || labels.none;
+                badge.classList.remove('hidden');
+                badge.style.animation = 'none'; void badge.offsetWidth; badge.style.animation = '';
+                inviteRow.classList.toggle('hidden', !info.can_approve_vault);
+            } catch (_) { badge.classList.add('hidden'); inviteRow.classList.add('hidden'); }
+        }, 260);
+    }
+
+    // ---- Small tactile ripple on any .button click --------------------
+    document.addEventListener('click', event => {
+        const btn = event.target.closest('.button');
+        if (!btn) return;
+        const rect = btn.getBoundingClientRect();
+        const dot = document.createElement('span');
+        dot.className = 'ripple';
+        dot.style.left = `${event.clientX - rect.left - 8}px`;
+        dot.style.top = `${event.clientY - rect.top - 8}px`;
+        btn.appendChild(dot);
+        setTimeout(() => dot.remove(), 520);
+    });
+    
+    function notify(message, type='') { const n=$('notice'); n.textContent=message; n.className=`notice show ${type}`; clearTimeout(n.timer); n.timer=setTimeout(()=>n.className='notice',4200); }
+    
+    function bytesFrom64(value) {
+        let b = value.replace(/-/g, '+').replace(/_/g, '/');
+        let pad = b.length % 4;
+        if (pad) {
+            if (pad === 2) b += '==';
+            else if (pad === 3) b += '=';
+            else throw new Error("Invalid base64 string pattern");
+        }
+        const binaryStr = atob(b);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) {
+            bytes[i] = binaryStr.charCodeAt(i);
+        }
+        return bytes;
+    }
+
+    function b64FromBytes(buffer) {
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    }
+
+    function base32(value) { const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; let bits=''; for(const char of value.replace(/=+$/,'').toUpperCase()){ const i=alphabet.indexOf(char); if(i>=0)bits+=i.toString(2).padStart(5,'0'); } return Uint8Array.from({length:Math.floor(bits.length/8)},(_,i)=>parseInt(bits.slice(i*8,i*8+8),2)); }
+    async function totp(bytes) { const counter=Math.floor(Date.now()/30000); const buffer=new ArrayBuffer(8); new DataView(buffer).setBigUint64(0,BigInt(counter)); const key=await crypto.subtle.importKey('raw',bytes,{name:'HMAC',hash:'SHA-1'},false,['sign']); const mac=new Uint8Array(await crypto.subtle.sign('HMAC',key,buffer)); const offset=mac[mac.length-1]&15; const value=((mac[offset]&127)<<24)|((mac[offset+1]&255)<<16)|((mac[offset+2]&255)<<8)|(mac[offset+3]&255); return String(value%1000000).padStart(6,'0'); }
+    async function refreshTotp() { if(!totpSecret)return; $('totpCode').textContent=(await totp(totpSecret)).split('').join(' '); const rest=30-(Math.floor(Date.now()/1000)%30); $('totpTimer').textContent=`New code in ${rest}s · generated on this device`; }
+    setInterval(refreshTotp,1000);
+    async function json(url, options={}) { const response=await fetch(`${API}${url}`,options); const data=await response.json(); if(!response.ok)throw new Error(data.detail||'Something went wrong.'); return data; }
+    function user() { const name=$('username').value.trim(); if(!name)throw new Error('Enter your name or work alias first.'); return name; }
+    
+    async function registerPasskey() { try { const username=user(); const inviteToken=$('inviteToken').value.trim()||null; notify('Preparing your device…'); const opts=await json('/api/passkey/register-options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username, invite_token:inviteToken})}); opts.challenge=bytesFrom64(opts.challenge); opts.user.id=bytesFrom64(opts.user.id); const credential=await navigator.credentials.create({publicKey:opts}); const verifyUrl=`/api/passkey/register-verify/${encodeURIComponent(username)}`+(inviteToken?`?invite_token=${encodeURIComponent(inviteToken)}`:''); const data=await json(verifyUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:credential.id,type:credential.type,rawId:b64FromBytes(credential.rawId),response:{attestationObject:b64FromBytes(credential.response.attestationObject),clientDataJSON:b64FromBytes(credential.response.clientDataJSON)}})}); totpSecret=base32(data.totp_secret); refreshTotp(); if(data.recovery_codes){$('recoveryList').innerHTML=data.recovery_codes.map(code=>`<span>${esc(code)}</span>`).join('');$('recoveryCodes').classList.remove('hidden');} notify('Your device is protected and ready to use.','success'); } catch(error) { notify(error.message,'error'); } }
+    async function signIn() { try { const username=user(); const opts=await json('/api/passkey/login-options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username})}); opts.challenge=bytesFrom64(opts.challenge); opts.allowCredentials?.forEach(c=>c.id=bytesFrom64(c.id)); const assertion=await navigator.credentials.get({publicKey:opts}); await json(`/api/passkey/login-verify/${encodeURIComponent(username)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:assertion.id,type:assertion.type,rawId:b64FromBytes(assertion.rawId),response:{authenticatorData:b64FromBytes(assertion.response.authenticatorData),clientDataJSON:b64FromBytes(assertion.response.clientDataJSON),signature:b64FromBytes(assertion.response.signature)}})}); notify('You’re signed in securely.','success'); } catch(error) { notify(error.message,'error'); } }
+    async function requestApproval() { try { const requester=user(); const approval=await json('/api/approvals',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requester,action_type:'VAULT_TRANSFER',meta:{amount:'$50,000',asset:'USDC',target:'Escrow Node 09'}})}); const who = approverRoles ? esc(approverRoles.primary_approver) : 'the primary approver'; notify(`Request ${approval.approval_id} sent to ${who}.`,'success'); refreshApprovals(); } catch(error) { notify(error.message,'error'); } }
+    const prevApprovalStatus = new Map(); // approval_id -> last-seen status, so we can play a one-shot glow when it changes
+    async function refreshApprovals() {
+        try {
+            const list = await json('/api/approvals');
+            $('approvalList').innerHTML = list.length ? list.map((a, i) => {
+                const active = a.status === 'pending';
+                const canUndo = a.status === 'approved' && a.undo_until > Date.now() / 1000;
+                const pct = Math.min(100, Math.round((a.approved_by.length / a.required_quorum) * 100));
+                const backupWait = active && a.main_responses.length === 0 ? Math.max(0, Math.round(a.backup_eligible_after - Date.now() / 1000)) : 0;
+                const roleNote = backupWait > 0
+                    ? `Awaiting <b>${esc(a.approvers[0] || 'primary approver')}</b> · backup unlocks in ${backupWait}s`
+                    : active ? `Primary or backup approver may decide now` : '';
+                const justResolved = prevApprovalStatus.get(a.approval_id) === 'pending' && a.status !== 'pending';
+                const resolvedClass = justResolved ? (a.status === 'approved' ? ' resolved-approve' : ' resolved-deny') : '';
+                prevApprovalStatus.set(a.approval_id, a.status);
+                return `<div class="approval${resolvedClass}" style="animation-delay:${i * 55}ms"><div class="approval-top"><div><h3>${esc(a.action_type.replaceAll('_', ' '))}</h3><p>${esc(a.meta.amount || 'Protected action')} · ${esc(a.meta.target || '')}</p></div><span class="tag ${a.status === 'approved' ? 'live' : 'secure'}">${esc(a.status)}</span></div>${roleNote ? `<p class="role-note">${roleNote}</p>` : ''}<div class="quorum-track"><div class="quorum-fill" style="width:${pct}%"></div></div><div class="approval-foot"><span>${a.approved_by.length}/${a.required_quorum} approvals</span><div class="approval-actions">${active ? `<button class="button primary small" onclick="approve('${a.approval_id}')">Approve</button><button class="button quiet small" onclick="deny('${a.approval_id}')">Deny</button>` : ''}${canUndo ? `<button class="button danger small" onclick="undo('${a.approval_id}')">Undo</button>` : ''}</div></div></div>`;
+            }).join('') : '<div class="approval empty">No requests waiting for approval.<br><span class="sub">Create a secure transfer request to see the two-device flow.</span></div>';
+        } catch (_) {}
+    }
+
+    // ---- Dual-custody QR handshake (Device A: the approver's browser) ----
+    // Approving/denying never signs a passkey challenge on this device. Instead
+    // it asks the server for a proximity token bound to this exact decision,
+    // renders it as a QR code, and waits on the live socket for a *second*
+    // device to prove possession of the approver's passkey.
+    let activeProximity = null;
+
+    function stopProximityTimer() { if (activeProximity?.timerInterval) clearInterval(activeProximity.timerInterval); }
+
+    function cancelProximity() { stopProximityTimer(); activeProximity = null; $('proximityBackdrop').classList.add('hidden'); }
+
+    function startProximityTimer() {
+        stopProximityTimer();
+        let tick = 0;
+        activeProximity.timerInterval = setInterval(() => {
+            tick++;
+            const remaining = Math.max(0, Math.round(activeProximity.expiresAt - Date.now() / 1000));
+            $('proximityTimer').textContent = remaining > 0 ? `Code expires in ${remaining}s` : 'Code expired — cancel and try again.';
+            if (remaining <= 0) { stopProximityTimer(); return; }
+            if (tick % 3 === 0) finishProximityDecision(); // fallback poll in case the live-socket push is missed
+        }, 1000);
+    }
+
+    async function startProximityFlow(approvalId, decision) {
+        try {
+            const approver = prompt('Your registered approver alias:', approverRoles?.primary_approver || 'ceo');
+            if (!approver) return;
+            const session = await json(`/api/approvals/${approvalId}/proximity-start`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ approver, decision })
+            });
+            activeProximity = { token: session.token, approvalId, approver, decision, expiresAt: session.expires_at };
+            $('proximityTitle').textContent = decision === 'approve' ? 'Scan to approve on a second device' : 'Scan to confirm the denial on a second device';
+            $('proximityHash').textContent = `action hash: ${session.action_hash.slice(0, 32)}…`;
+            $('proximityStatus').className = 'proximity-status';
+            $('proximityStatus').innerHTML = '<span class="spinner"></span><span>Waiting for second device…</span>';
+            $('proximityQr').innerHTML = '';
+            new QRCode($('proximityQr'), { text: session.handoff_url, width: 188, height: 188, colorDark: '#050805', colorLight: '#ffffff' });
+            $('proximityBackdrop').classList.remove('hidden');
+            startProximityTimer();
+        } catch (error) { notify(error.message, 'error'); }
+    }
+
+    async function finishProximityDecision() {
+        if (!activeProximity) return;
+        const { token, approvalId, approver, decision } = activeProximity;
+        try {
+            const proximitySession = await json(`/api/proximity/${token}`);
+            if (proximitySession.status !== 'verified' || !proximitySession.approval_proof) return;
+            $('proximityStatus').className = 'proximity-status ok';
+            $('proximityStatus').innerHTML = '<span>✓</span><span>Second device verified — completing decision…</span>';
+            stopProximityTimer();
+            const data = await json(`/api/approvals/${approvalId}/decision`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ approver, decision, proof: proximitySession.approval_proof })
+            });
+            notify(decision === 'approve'
+                ? (data.status === 'approved' ? 'Approval complete. You have five seconds to undo.' : 'Approval recorded — waiting for the remaining approver.')
+                : 'Approval request declined.', 'success');
+            activeProximity = null;
+            $('proximityBackdrop').classList.add('hidden');
+            refreshApprovals(); refreshLedger();
+        } catch (error) { notify(error.message, 'error'); activeProximity = null; $('proximityBackdrop').classList.add('hidden'); }
+    }
+
+    async function approve(id) { startProximityFlow(id, 'approve'); }
+    async function deny(id) { startProximityFlow(id, 'deny'); }
+    async function undo(id) { try { await json(`/api/approvals/${id}/undo`,{method:'POST'}); notify('Approval undone before it could be executed.','success'); refreshApprovals(); } catch(error) { notify(error.message,'error'); } }
+    async function refreshLedger() { try { const receipts=await json('/api/ledger'); $('ledger').innerHTML=receipts.length?receipts.slice().reverse().map((r,i)=>`<tr class="ledger-row" style="animation-delay:${i*35}ms"><td>${esc(r.action.replaceAll('_',' '))}</td><td>${new Date(r.timestamp*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td><td>${esc(r.operator)}</td><td><span class="tier ${r.tier==='critical'?'critical':''}">${esc(r.tier)}</span></td><td class="receipt">${esc(r.receipt_id)}</td></tr>`).join(''):'<tr><td colspan="5" style="text-align:center;padding:24px;color:#8795a8;font-weight:400">Your verified activity will appear here.</td></tr>'; } catch(_){} }
+    function toggleFallback(){$('fallbackForm').classList.toggle('hidden')} async function verifyFallback(){try{const result=await json('/api/totp/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user(),code:$('fallbackInput').value.trim()})});notify('Fallback code verified. You’re signed in.','success');}catch(error){notify(error.message,'error')}}
+    async function reportCompromise(){try{const username=user();if(!confirm(`Lock all sessions for ${username}?`))return;const r=await json(`/api/security/this-wasnt-me/${encodeURIComponent(username)}`,{method:'POST'});notify(`Identity locked. ${r.revoked_sessions} active session(s) revoked.`,'success')}catch(error){notify(error.message,'error')}}
+    function connect(){if(liveSocket&&[0,1].includes(liveSocket.readyState))return;const protocol=location.protocol==='https:'?'wss':'ws';liveSocket=new WebSocket(`${protocol}://${location.host}/ws/live`);liveSocket.onopen=()=>{$('liveStatus').textContent='Connected';$('networkState').textContent='Secure channel online';clearInterval(keepAlive);keepAlive=setInterval(()=>liveSocket.readyState===1&&liveSocket.send('ping'),20000)};liveSocket.onmessage=(event)=>{let msg=null;try{msg=JSON.parse(event.data)}catch(_){}if(msg?.event==='proximity_completed'&&activeProximity&&msg.token===activeProximity.token){finishProximityDecision();return}refreshApprovals();refreshLedger()};liveSocket.onclose=()=>{$('liveStatus').textContent='Reconnecting';setTimeout(connect,2500)}}
+    addEventListener('offline',()=>{$('networkState').textContent='Offline — local code ready';notify('You’re offline. Use your locally generated fallback code.');$('fallbackForm').classList.remove('hidden')});addEventListener('online',()=>{connect();$('networkState').textContent='Secure channel online'});
+
+    // ---- Second-device landing view (Device B: the phone that scanned the QR) ----
+    let mobileSession = null;
+
+    async function initMobileVerify(token) {
+        document.querySelector('.shell').classList.add('hidden');
+        $('mobileVerify').classList.remove('hidden');
+        try {
+            mobileSession = await json(`/api/proximity/${token}`);
+            if (mobileSession.status === 'expired') { $('mobileSub').textContent = 'This code has expired. Go back to the original device and start again.'; $('mobileVerifyBtn').disabled = true; return; }
+            if (mobileSession.status === 'verified') { showMobileDone(); return; }
+            const amount = mobileSession.meta.amount || 'this action'; const target = mobileSession.meta.target ? ` to ${mobileSession.meta.target}` : '';
+            $('mobileTitle').textContent = mobileSession.decision === 'approve' ? 'Confirm this approval' : 'Confirm this denial';
+            $('mobileSub').textContent = `You're about to ${mobileSession.decision} ${esc(amount)}${esc(target)} as ${esc(mobileSession.approver)}. This proves it's really you, on a separate device from the one that made the decision.`;
+            const tick = () => { const remaining = Math.max(0, Math.round(mobileSession.expires_at - Date.now() / 1000)); $('mobileTimer').textContent = remaining > 0 ? `Expires in ${remaining}s` : 'Expired — go back and start again.'; if (remaining <= 0) { clearInterval(mobileTickHandle); $('mobileVerifyBtn').disabled = true; } };
+            var mobileTickHandle = setInterval(tick, 1000); tick();
+        } catch (error) { $('mobileSub').textContent = error.message; $('mobileVerifyBtn').disabled = true; }
+    }
+
+    function showMobileDone() {
+        $('mobileTitle').textContent = 'Verified ✓';
+        $('mobileSub').textContent = 'This device confirmed your passkey. Go back to your original device — the decision will complete there automatically.';
+        $('mobileVerifyBtn').classList.add('hidden');
+        $('mobileTimer').textContent = '';
+    }
+
+    async function verifyOnThisDevice() {
+        if (!mobileSession) return;
+        const btn = $('mobileVerifyBtn'); btn.disabled = true; btn.textContent = 'Waiting for biometric prompt…';
+        try {
+            const opts = await json('/api/passkey/action-options', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: mobileSession.approver, action_type: mobileSession.action_type, action_meta: mobileSession.meta })
+            });
+            opts.challenge = bytesFrom64(opts.challenge);
+            opts.allowCredentials?.forEach(c => c.id = bytesFrom64(c.id));
+            const assertion = await navigator.credentials.get({ publicKey: opts });
+            let totp_code = null;
+            const policy = await json(`/api/policy/${mobileSession.action_type}`);
+            if (policy.requires_totp_step_up) {
+                totp_code = prompt('This is a critical action. Enter this approver’s current 6-digit fallback code:');
+                if (!totp_code) throw new Error('A fresh fallback code is required for this action.');
+            }
+            const verifyPayload = {
+                id: assertion.id, type: assertion.type, rawId: b64FromBytes(assertion.rawId),
+                response: {
+                    authenticatorData: b64FromBytes(assertion.response.authenticatorData),
+                    clientDataJSON: b64FromBytes(assertion.response.clientDataJSON),
+                    signature: b64FromBytes(assertion.response.signature),
+                    userHandle: assertion.response.userHandle ? b64FromBytes(assertion.response.userHandle) : null
+                },
+                action_context: { action_type: mobileSession.action_type, meta: mobileSession.meta },
+                totp_code
+            };
+            const verified = await json(`/api/passkey/action-verify/${encodeURIComponent(mobileSession.approver)}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(verifyPayload)
+            });
+            await json(`/api/proximity/${mobileSession.token}/complete`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ approval_proof: verified.approval_proof })
+            });
+            showMobileDone();
+        } catch (error) {
+            notify(error.message, 'error'); btn.disabled = false; btn.textContent = 'Verify with this device’s passkey';
+        }
+    }
+
+    // ---- Admin panel (?admin=1): view/reissue privileged-role invites ----
+    // The secret lives only in this browser's localStorage so you don't have
+    // to re-paste it every time you reload during development. It is sent as
+    // a header on admin calls only -- never logged, never touches the vault
+    // approval flow.
+    const ADMIN_KEY = 'vanguard_admin_secret';
+    function initAdminView() {
+        document.querySelector('.shell').classList.add('hidden');
+        $('adminView').classList.remove('hidden');
+        const saved = localStorage.getItem(ADMIN_KEY);
+        if (saved) { $('adminSecretInput').value = saved; unlockAdmin(); }
+    }
+    async function unlockAdmin() {
+        const secret = $('adminSecretInput').value.trim();
+        if (!secret) { notify('Enter the admin secret first.', 'error'); return; }
+        try {
+            await json('/api/admin/invites', { headers: { 'X-Admin-Secret': secret } }); // just to validate it works
+            localStorage.setItem(ADMIN_KEY, secret);
+            $('adminLocked').classList.add('hidden');
+            $('adminUnlocked').classList.remove('hidden');
+            loadInvites();
+        } catch (error) { notify(error.message, 'error'); }
+    }
+    function lockAdmin() {
+        localStorage.removeItem(ADMIN_KEY);
+        $('adminSecretInput').value = '';
+        $('adminUnlocked').classList.add('hidden');
+        $('adminLocked').classList.remove('hidden');
+    }
+    async function loadInvites() {
+        const secret = localStorage.getItem(ADMIN_KEY);
+        try {
+            const invites = await json('/api/admin/invites', { headers: { 'X-Admin-Secret': secret } });
+            $('inviteTable').innerHTML = invites.map(inv => {
+                const state = inv.claimed ? '<span class="tag live">claimed</span>' : (inv.consumed ? '<span class="tag" style="background:#271116;color:#ff9aa7">consumed, unclaimed</span>' : '<span class="tag secure">unclaimed</span>');
+                const tokenBlock = inv.invite_token
+                    ? `<div class="proximity-hash" style="margin:8px 0;cursor:pointer" onclick="copyToken(this,'${esc(inv.invite_token)}')" title="Click to copy">${esc(inv.invite_token)}</div>`
+                    : `<p class="sub" style="margin:8px 0">No live token — reissue one below.</p>`;
+                return `<div class="approval" style="margin-bottom:10px"><div class="approval-top"><h3 style="text-transform:capitalize">${esc(inv.username)}</h3>${state}</div>${tokenBlock}<div class="approval-foot"><span>${inv.consumed ? 'used' : `expires in ${Math.round(inv.expires_in_seconds / 3600)}h`}</span><button class="button secondary small" onclick="reissueInvite('${esc(inv.username)}')">Reissue</button></div></div>`;
+            }).join('');
+        } catch (error) { notify(error.message, 'error'); if (String(error.message).includes('secret')) lockAdmin(); }
+    }
+    function copyToken(el, token) { navigator.clipboard?.writeText(token); const original = el.textContent; el.textContent = 'Copied ✓'; setTimeout(() => el.textContent = original, 900); }
+    async function reissueInvite(username) {
+        const secret = localStorage.getItem(ADMIN_KEY);
+        try {
+            await json(`/api/admin/invites/${encodeURIComponent(username)}/reissue`, { method: 'POST', headers: { 'X-Admin-Secret': secret } });
+            notify(`New invite issued for ${username}.`, 'success');
+            loadInvites();
+        } catch (error) { notify(error.message, 'error'); }
+    }
+
+    // ---- Route to the right view. Runs last, after everything above it ----
+    // (initMobileVerify / initAdminView / ADMIN_KEY / loadApproverRoles etc.)
+    // has actually been defined -- calling any of these earlier in the file
+    // throws a temporal-dead-zone ReferenceError on the `const` bindings.
+    const proximityToken = new URLSearchParams(location.search).get('proximity');
+    const adminMode = new URLSearchParams(location.search).get('admin');
+    if (proximityToken) { initMobileVerify(proximityToken); }
+    else if (adminMode) { initAdminView(); }
+    else { loadApproverRoles(); refreshApprovals(); refreshLedger(); connect(); }
+  </script>
+</body>
