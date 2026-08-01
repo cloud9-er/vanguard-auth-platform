@@ -1,2 +1,17 @@
-vouch_audit.db
+# Python
 __pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# Project data — never commit the audit DB or any secrets
+vanguard_audit.db
+*.db
+
+# Editor / OS noise
+.vscode/
+.DS_Store
+
+# Env files
+.env

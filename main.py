@@ -246,7 +246,7 @@ class ProximityCompleteRequest(BaseModel):
 # ============================================================
 # 3. APP INIT & STORAGE
 # ============================================================
-app = FastAPI(title="Vanguard by Pyforge Authentication Platform")
+app = FastAPI(title="Vanguard Authentication Platform")
 
 app.add_middleware(
     CORSMiddleware,
@@ -265,7 +265,7 @@ DB_IP_ACTIVITY = {}
 DB_APPROVALS = {}        
 DB_APPROVAL_PROOFS = {}  
 DB_PROXIMITY = {}        # token -> dual-custody QR handshake session (second-device biometric proof)
-AUDIT_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vouch_audit.db")
+AUDIT_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vanguard_audit.db")
 
 def init_audit_store():
     with sqlite3.connect(AUDIT_DB_PATH) as connection:
@@ -441,7 +441,7 @@ def register_verify(username: str, credential: dict, request: Request, invite_to
         "verified": True,
         "message": "Passkey verified and bound.",
         "totp_secret": totp_secret,
-        "totp_uri": pyotp.totp.TOTP(totp_secret).provisioning_uri(name=username, issuer_name="Vanguard by Pyforge"),
+        "totp_uri": pyotp.totp.TOTP(totp_secret).provisioning_uri(name=username, issuer_name="Vanguard"),
         "recovery_codes": recovery_codes,
     }
 
