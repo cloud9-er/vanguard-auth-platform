@@ -243,3 +243,27 @@ def test_banned_ip_is_rejected(monkeypatch):
         main.ensure_ip_allowed(request)
 
     assert error.value.status_code == 403
+
+
+def test_banned_ip_cannot_request_login_options(monkeypatch):
+    import time
+
+    ip = "test-login-banned-ip"
+    monkeypatch.setitem(
+        main.DB_IP_ACTIVITY,
+        ip,
+        {
+            "failures": main.IP_FAILURE_THRESHOLD,
+            "window_start": time.time(),
+            "banned_until": time.time() + 60,
+        },
+    )
+
+    response = client.post(
+        "/api/passkey/login-options",
+        json={"username": "nonexistent-test-user"},
+        headers={"x-demo-ip": ip},
+    )
+
+    assert response.status_code == 403
+    assert "temporarily banned" in response.json()["detail"]
