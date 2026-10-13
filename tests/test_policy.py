@@ -157,3 +157,89 @@ def test_vault_transfer_with_invalid_totp_is_rejected(monkeypatch):
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid TOTP step-up code."
     assert len(main.DB_RECEIPTS) == receipts_before
+
+
+def test_fifth_ip_failure_triggers_temporary_ban(monkeypatch):
+    import time
+
+    ip = "test-threshold-ip"
+    monkeypatch.setitem(
+        main.DB_IP_ACTIVITY,
+        ip,
+        {"failures": 0, "window_start": time.time(), "banned_until": 0},
+    )
+
+    for _ in range(main.IP_FAILURE_THRESHOLD):
+        main.record_ip_failure(ip)
+
+    entry = main.DB_IP_ACTIVITY[ip]
+    assert entry["failures"] == main.IP_FAILURE_THRESHOLD
+    assert entry["banned_until"] > time.time()
+
+
+def test_success_resets_ip_failure_counter(monkeypatch):
+    import time
+
+    ip = "test-success-ip"
+    monkeypatch.setitem(
+        main.DB_IP_ACTIVITY,
+        ip,
+        {"failures": 3, "window_start": time.time(), "banned_until": 0},
+    )
+
+    main.record_ip_success(ip)
+
+    assert main.DB_IP_ACTIVITY[ip]["failures"] == 0
+
+
+def test_failure_outside_window_starts_new_count(monkeypatch):
+    import time
+
+    ip = "test-window-ip"
+    old_start = time.time() - main.IP_FAILURE_WINDOW_SECONDS - 1
+    monkeypatch.setitem(
+        main.DB_IP_ACTIVITY,
+        ip,
+        {"failures": 4, "window_start": old_start, "banned_until": 0},
+    )
+
+    main.record_ip_failure(ip)
+
+    entry = main.DB_IP_ACTIVITY[ip]
+    assert entry["failures"] == 1
+    assert entry["window_start"] > old_start
+
+
+def test_banned_ip_is_rejected(monkeypatch):
+    import time
+    from starlette.requests import Request
+
+    ip = "test-banned-ip"
+    monkeypatch.setitem(
+        main.DB_IP_ACTIVITY,
+        ip,
+        {
+            "failures": main.IP_FAILURE_THRESHOLD,
+            "window_start": time.time(),
+            "banned_until": time.time() + 60,
+        },
+    )
+
+    scope = {
+        "type": "http",
+        "http_version": "1.1",
+        "method": "GET",
+        "scheme": "http",
+        "path": "/",
+        "raw_path": b"/",
+        "query_string": b"",
+        "headers": [(b"x-demo-ip", ip.encode())],
+        "client": ("127.0.0.1", 12345),
+        "server": ("testserver", 80),
+    }
+    request = Request(scope)
+
+    with pytest.raises(main.HTTPException) as error:
+        main.ensure_ip_allowed(request)
+
+    assert error.value.status_code == 403
