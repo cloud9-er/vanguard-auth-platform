@@ -267,3 +267,58 @@ def test_banned_ip_cannot_request_login_options(monkeypatch):
 
     assert response.status_code == 403
     assert "temporarily banned" in response.json()["detail"]
+
+def test_failed_passkey_verification_increments_ip_failures(monkeypatch):
+    import time
+
+    username = "test-failed-passkey-user"
+    ip = "test-failed-passkey-ip"
+
+    monkeypatch.setitem(
+        main.DB_USERS,
+        username,
+        {
+            "public_key": b"test-public-key",
+            "sign_count": 0,
+        },
+    )
+
+    monkeypatch.setitem(
+        main.DB_AUTH_CHALLENGES,
+        username,
+        {
+            "challenge": "test-challenge",
+            "issued_at": time.time(),
+            "rp_id": "testserver",
+        },
+    )
+
+    monkeypatch.setitem(
+        main.DB_IP_ACTIVITY,
+        ip,
+        {
+            "failures": 0,
+            "window_start": time.time(),
+            "banned_until": 0,
+        },
+    )
+
+    def reject_verification(**kwargs):
+        raise ValueError("Simulated invalid passkey signature")
+
+    monkeypatch.setattr(
+        main.webauthn,
+        "verify_authentication_response",
+        reject_verification,
+    )
+
+    response = client.post(
+        f"/api/passkey/login-verify/{username}",
+        headers={"x-demo-ip": ip},
+        json={"id": "test-credential", "response": {}},
+    )
+
+    assert response.status_code == 401
+    assert "Signature verification failed" in response.json()["detail"]
+    assert main.DB_IP_ACTIVITY[ip]["failures"] == 1
+
