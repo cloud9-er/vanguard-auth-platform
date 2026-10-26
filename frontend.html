@@ -101,7 +101,8 @@
       <span class="tag secure">Dual-custody check</span>
       <h2 id="proximityTitle">Scan to verify on a second device</h2>
       <p class="sub">This decision can’t be signed on the device that made it. Scan this code with your phone’s camera and confirm there instead.</p>
-      <div class="qr-frame"><div id="proximityQr"></div></div>
+     <div class="qr-frame"><div id="proximityQr"></div></div>
+      <div id="proximityTotp" style="font:700 22px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:4px;color:#d4ff6b;margin:14px 0 4px">— — — — — —</div>
       <div class="proximity-hash" id="proximityHash">action hash: —</div>
       <div class="proximity-status" id="proximityStatus"><span class="spinner"></span><span>Waiting for second device…</span></div>
       <div class="proximity-timer" id="proximityTimer">Code expires in 90s</div>
@@ -239,13 +240,19 @@
                 const canUndo = a.status === 'approved' && a.undo_until > Date.now() / 1000;
                 const pct = Math.min(100, Math.round((a.approved_by.length / a.required_quorum) * 100));
                 const backupWait = active && a.main_responses.length === 0 ? Math.max(0, Math.round(a.backup_eligible_after - Date.now() / 1000)) : 0;
+                const adv = a.advisory || {};
+                const advisoryNote = adv.error
+                    ? `<p class="role-note">${esc(adv.error)}</p>`
+                    : adv.rule_flags
+                    ? `<p class="role-note">Advisory (rules): ${esc(adv.rule_flags.join(', ') || 'none')} · Model: ${esc(adv.model_advisory?.reason || 'no reading')}</p>`
+                    : '';
                 const roleNote = backupWait > 0
                     ? `Awaiting <b>${esc(a.approvers[0] || 'primary approver')}</b> · backup unlocks in ${backupWait}s`
                     : active ? `Primary or backup approver may decide now` : '';
                 const justResolved = prevApprovalStatus.get(a.approval_id) === 'pending' && a.status !== 'pending';
                 const resolvedClass = justResolved ? (a.status === 'approved' ? ' resolved-approve' : ' resolved-deny') : '';
                 prevApprovalStatus.set(a.approval_id, a.status);
-                return `<div class="approval${resolvedClass}" style="animation-delay:${i * 55}ms"><div class="approval-top"><div><h3>${esc(a.action_type.replaceAll('_', ' '))}</h3><p>${esc(a.meta.amount || 'Protected action')} · ${esc(a.meta.target || '')}</p></div><span class="tag ${a.status === 'approved' ? 'live' : 'secure'}">${esc(a.status)}</span></div>${roleNote ? `<p class="role-note">${roleNote}</p>` : ''}<div class="quorum-track"><div class="quorum-fill" style="width:${pct}%"></div></div><div class="approval-foot"><span>${a.approved_by.length}/${a.required_quorum} approvals</span><div class="approval-actions">${active ? `<button class="button primary small" onclick="approve('${a.approval_id}')">Approve</button><button class="button quiet small" onclick="deny('${a.approval_id}')">Deny</button>` : ''}${canUndo ? `<button class="button danger small" onclick="undo('${a.approval_id}')">Undo</button>` : ''}</div></div></div>`;
+                return `<div class="approval${resolvedClass}" style="animation-delay:${i * 55}ms"><div class="approval-top"><div><h3>${esc(a.action_type.replaceAll('_', ' '))}</h3><p>${esc(a.meta.amount || 'Protected action')} · ${esc(a.meta.target || '')}</p></div><span class="tag ${a.status === 'approved' ? 'live' : 'secure'}">${esc(a.status)}</span></div>${roleNote ? `<p class="role-note">${roleNote}</p>` : ''} ${advisoryNote}<div class="quorum-track"><div class="quorum-fill" style="width:${pct}%"></div></div><div class="approval-foot"><span>${a.approved_by.length}/${a.required_quorum} approvals</span><div class="approval-actions">${active ? `<button class="button primary small" onclick="approve('${a.approval_id}')">Approve</button><button class="button quiet small" onclick="deny('${a.approval_id}')">Deny</button>` : ''}${canUndo ? `<button class="button danger small" onclick="undo('${a.approval_id}')">Undo</button>` : ''}</div></div></div>`;
             }).join('') : '<div class="approval empty">No requests waiting for approval.<br><span class="sub">Create a secure transfer request to see the two-device flow.</span></div>';
         } catch (_) {}
     }
@@ -256,16 +263,20 @@
     // renders it as a QR code, and waits on the live socket for a *second*
     // device to prove possession of the approver's passkey.
     let activeProximity = null;
-
+    let isFinishingProximity=false;
     function stopProximityTimer() { if (activeProximity?.timerInterval) clearInterval(activeProximity.timerInterval); }
 
     function cancelProximity() { stopProximityTimer(); activeProximity = null; $('proximityBackdrop').classList.add('hidden'); }
-
+    async function refreshProximityTotp() {
+    if (!totpSecret || !activeProximity) return;
+    $('proximityTotp').textContent = (await totp(totpSecret)).split('').join(' ');
+    }
     function startProximityTimer() {
         stopProximityTimer();
         let tick = 0;
         activeProximity.timerInterval = setInterval(() => {
             tick++;
+            refreshProximityTotp();
             const remaining = Math.max(0, Math.round(activeProximity.expiresAt - Date.now() / 1000));
             $('proximityTimer').textContent = remaining > 0 ? `Code expires in ${remaining}s` : 'Code expired — cancel and try again.';
             if (remaining <= 0) { stopProximityTimer(); return; }
@@ -294,11 +305,26 @@
     }
 
     async function finishProximityDecision() {
-        if (!activeProximity) return;
+       if (!activeProximity || isFinishingProximity) return;
+       isFinishingProximity = true;
+
         const { token, approvalId, approver, decision } = activeProximity;
         try {
             const proximitySession = await json(`/api/proximity/${token}`);
-            if (proximitySession.status !== 'verified' || !proximitySession.approval_proof) return;
+
+console.log('Proximity status:', proximitySession.status);
+console.log(
+    'Approval proof present:',
+    Boolean(proximitySession.approval_proof)
+);
+
+if (proximitySession.status !== 'verified' || !proximitySession.approval_proof) {
+    console.error('Decision stopped: proximity session is not ready.');
+    $('proximityStatus').className = 'proximity-status';
+    $('proximityStatus').textContent =
+        'Verification is not ready. Please try again.';
+    return;
+}
             $('proximityStatus').className = 'proximity-status ok';
             $('proximityStatus').innerHTML = '<span>✓</span><span>Second device verified — completing decision…</span>';
             stopProximityTimer();
@@ -312,12 +338,137 @@
             activeProximity = null;
             $('proximityBackdrop').classList.add('hidden');
             refreshApprovals(); refreshLedger();
-        } catch (error) { notify(error.message, 'error'); activeProximity = null; $('proximityBackdrop').classList.add('hidden'); }
+       } catch (error) {
+    console.error('Proximity decision failed:', error.message);
+    notify(error.message, 'error');
+    $('proximityBackdrop').classList.add('hidden');
+    // Keep activeProximity temporarily so we can inspect the failed session.
+       } finally {
+        isFinishingProximity= false;
+       }
     }
 
     async function approve(id) { startProximityFlow(id, 'approve'); }
     async function deny(id) { startProximityFlow(id, 'deny'); }
-    async function undo(id) { try { await json(`/api/approvals/${id}/undo`,{method:'POST'}); notify('Approval undone before it could be executed.','success'); refreshApprovals(); } catch(error) { notify(error.message,'error'); } }
+    async function undo(id) {
+    try {
+        const username = user();
+
+        // 1. Find the approval and check whether it can be undone.
+        const approvals = await json('/api/approvals');
+        const approval = approvals.find(a => a.approval_id === id);
+
+        if (!approval || approval.status !== 'approved') {
+            throw new Error('This approval is no longer available to undo.');
+        }
+
+        if (!approval.approved_by.includes(username)) {
+            throw new Error('Only an original approver can undo this approval.');
+        }
+
+        if (approval.undo_until <= Date.now() / 1000) {
+            throw new Error('The five-second undo window has closed.');
+        }
+
+        // 2. Bind the passkey challenge to this specific undo request.
+        const meta = {
+            approval_id: id,
+            purpose: 'undo'
+        };
+
+        const opts = await json('/api/passkey/action-options', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username,
+                action_type: approval.action_type,
+                action_meta: meta
+            })
+        });
+
+        opts.challenge = bytesFrom64(opts.challenge);
+        opts.allowCredentials?.forEach(c => {
+            c.id = bytesFrom64(c.id);
+        });
+
+        // 3. Ask the authenticator to verify the approver.
+        const assertion = await navigator.credentials.get({
+            publicKey: opts
+        });
+
+        // 4. Critical actions also require a TOTP code.
+        let totp_code = null;
+
+        const policy = await json(`/api/policy/${approval.action_type}`);
+
+        if (policy.requires_totp_step_up) {
+            totp_code = prompt(
+                'This is a critical action. Enter your current 6-digit fallback code:'
+            );
+
+            if (!totp_code) {
+                throw new Error('A TOTP code is required for this action.');
+            }
+        }
+
+        // 5. Send the passkey assertion for server-side verification.
+        const verified = await json(
+            `/api/passkey/action-verify/${encodeURIComponent(username)}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: assertion.id,
+                    type: assertion.type,
+                    rawId: b64FromBytes(assertion.rawId),
+                    response: {
+                        authenticatorData: b64FromBytes(
+                            assertion.response.authenticatorData
+                        ),
+                        clientDataJSON: b64FromBytes(
+                            assertion.response.clientDataJSON
+                        ),
+                        signature: b64FromBytes(
+                            assertion.response.signature
+                        ),
+                        userHandle: assertion.response.userHandle
+                            ? b64FromBytes(assertion.response.userHandle)
+                            : null
+                    },
+                    action_context: {
+                        action_type: approval.action_type,
+                        meta
+                    },
+                    totp_code
+                })
+            }
+        );
+
+        if (!verified.undo_proof) {
+            throw new Error(
+                'Passkey verification did not produce an undo proof.'
+            );
+        }
+
+        // 6. Submit the one-time proof to the undo endpoint.
+        await json(
+            `/api/approvals/${encodeURIComponent(id)}/undo`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    proof: verified.undo_proof
+                })
+            }
+        );
+
+        notify('Approval undone successfully.', 'success');
+        refreshApprovals();
+
+    } catch (error) {
+        notify(error.message, 'error');
+    }
+}
     async function refreshLedger() { try { const receipts=await json('/api/ledger'); $('ledger').innerHTML=receipts.length?receipts.slice().reverse().map((r,i)=>`<tr class="ledger-row" style="animation-delay:${i*35}ms"><td>${esc(r.action.replaceAll('_',' '))}</td><td>${new Date(r.timestamp*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td><td>${esc(r.operator)}</td><td><span class="tier ${r.tier==='critical'?'critical':''}">${esc(r.tier)}</span></td><td class="receipt">${esc(r.receipt_id)}</td></tr>`).join(''):'<tr><td colspan="5" style="text-align:center;padding:24px;color:#8795a8;font-weight:400">Your verified activity will appear here.</td></tr>'; } catch(_){} }
     function toggleFallback(){$('fallbackForm').classList.toggle('hidden')} async function verifyFallback(){try{const result=await json('/api/totp/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user(),code:$('fallbackInput').value.trim()})});notify('Fallback code verified. You’re signed in.','success');}catch(error){notify(error.message,'error')}}
     async function reportCompromise(){try{const username=user();if(!confirm(`Lock all sessions for ${username}?`))return;const r=await json(`/api/security/this-wasnt-me/${encodeURIComponent(username)}`,{method:'POST'});notify(`Identity locked. ${r.revoked_sessions} active session(s) revoked.`,'success')}catch(error){notify(error.message,'error')}}

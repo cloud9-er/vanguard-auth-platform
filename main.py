@@ -19,7 +19,8 @@ from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconn
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-
+import asyncio
+from ai_analyzer import analyze
 # ============================================================
 # 1. CONFIG
 # ============================================================
@@ -264,6 +265,7 @@ DB_RECEIPTS = []
 DB_IP_ACTIVITY = {}      
 DB_APPROVALS = {}        
 DB_APPROVAL_PROOFS = {}  
+DB_UNDO_PROOFS = {}
 DB_PROXIMITY = {}        # token -> dual-custody QR handshake session (second-device biometric proof)
 AUDIT_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vanguard_audit.db")
 
@@ -575,6 +577,12 @@ async def create_approval(payload: ApprovalRequest, request: Request):
         "undo_until": None,
         "backup_eligible_after": time.time() + 30,  
     }
+        # Advisory only: rules and the local model add a note. Nothing on the
+    # decision path (/decision, /undo, passkey routes) reads this field.
+    try:
+        approval["advisory"] = await asyncio.to_thread(analyze, approval)
+    except Exception as exc:
+        approval["advisory"] = {"error": f"analysis unavailable: {exc}"}
     DB_APPROVALS[approval_id] = approval
     await live_updates.broadcast({"event": "approval_requested", "approval": approval})
     return approval
@@ -582,7 +590,6 @@ async def create_approval(payload: ApprovalRequest, request: Request):
 @app.get("/api/approvals")
 def get_approvals():
     return sorted(DB_APPROVALS.values(), key=lambda item: item["created_at"], reverse=True)
-
 @app.post("/api/approvals/{approval_id}/decision")
 async def decide_approval(approval_id: str, payload: ApprovalDecision, request: Request):
     ip = ensure_ip_allowed(request)
@@ -626,18 +633,54 @@ async def decide_approval(approval_id: str, payload: ApprovalDecision, request: 
         approval["approved_by"].append(payload.approver)
         if len(approval["approved_by"]) >= approval["required_quorum"]:
             approval["status"] = "approved"
-            approval["undo_until"] = time.time() + 5
+            approval["undo_until"] = time.time() + 30
     record_ip_success(ip)
     await live_updates.broadcast({"event": "approval_updated", "approval": approval})
     return approval
 
+
+
 @app.post("/api/approvals/{approval_id}/undo")
-async def undo_approval(approval_id: str, request: Request):
+async def undo_approval(
+    approval_id: str,
+    request: Request,
+    x_admin_secret: Optional[str] = Header(None),
+):
     approval = DB_APPROVALS.get(approval_id)
     if not approval or approval["status"] != "approved":
-        raise HTTPException(status_code=404, detail="There is no approved request to undo.")
-    if not approval["undo_until"] or time.time() > approval["undo_until"]:
-        raise HTTPException(status_code=409, detail="The five-second undo window has closed.")
+        raise HTTPException(
+            status_code=404,
+            detail="There is no approved request to undo.",
+        )
+
+    if not approval.get("undo_until") or time.time() > approval["undo_until"]:
+        raise HTTPException(
+            status_code=409,
+            detail="The 30-second undo window has closed.",
+        )
+
+    if x_admin_secret is not None:
+        require_admin(x_admin_secret)
+    else:
+        try:
+            payload = await request.json()
+        except Exception:
+            payload = {}
+
+        proof_token = payload.get("proof") if isinstance(payload, dict) else None
+        proof = DB_UNDO_PROOFS.pop(proof_token, None) if proof_token else None
+
+        if (
+            not proof
+            or proof.get("approval_id") != approval_id
+            or proof.get("approver") not in approval.get("approved_by", [])
+            or proof.get("expires_at", 0) < time.time()
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="A fresh passkey verification from an original approver is required.",
+            )
+
     approval["status"] = "undone"
     await live_updates.broadcast({"event": "approval_updated", "approval": approval})
     return approval
@@ -855,15 +898,57 @@ def action_verify(username: str, req: VerificationRequest, request: Request):
     DB_RECEIPTS.append(receipt)
     persist_receipt(receipt)
     
+    
     approval_proof = None
+    undo_proof = None
+
     if approval_id:
-        if approval["status"] != "pending":
-            raise HTTPException(status_code=404, detail="The live approval request is no longer pending.")
-        approval_proof = safe_b64url(24)
-        DB_APPROVAL_PROOFS[approval_proof] = {
-            "approval_id": approval_id, "approver": username, "expires_at": time.time() + 60,
-        }
-    return {"status": "verified", "receipt": receipt, "approval_proof": approval_proof}
+        if meta.get("purpose") == "undo":
+            if approval["status"] != "approved":
+                raise HTTPException(
+                    status_code=409,
+                    detail="Only an approved request can be undone.",
+                )
+
+            if username not in approval.get("approved_by", []):
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only an original approver can undo this request.",
+                )
+
+            if not approval.get("undo_until") or time.time() > approval["undo_until"]:
+                raise HTTPException(
+                    status_code=409,
+                    detail="The five-second undo window has closed.",
+                )
+
+            undo_proof = safe_b64url(24)
+            DB_UNDO_PROOFS[undo_proof] = {
+                "approval_id": approval_id,
+                "approver": username,
+                "expires_at": min(time.time() + 60, approval["undo_until"]),
+            }
+
+        else:
+            if approval["status"] != "pending":
+                raise HTTPException(
+                    status_code=404,
+                    detail="The live approval request is no longer pending.",
+                )
+
+            approval_proof = safe_b64url(24)
+            DB_APPROVAL_PROOFS[approval_proof] = {
+                "approval_id": approval_id,
+                "approver": username,
+                "expires_at": time.time() + 60,
+            }
+
+    return {
+        "status": "verified",
+        "receipt": receipt,
+        "approval_proof": approval_proof,
+        "undo_proof": undo_proof,
+    }
 
 @app.get("/api/ledger")
 def get_ledger():
