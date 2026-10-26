@@ -1,96 +1,87 @@
-# Vanguard — Passwordless Authentication & Approval Platform
+# Vanguard
 
-*Easy to use. Hard to break.*
+A demo-grade authorization platform for sensitive actions such as vault transfers. Approvals require a passkey (WebAuthn) and a second-device check through a QR handshake. It also includes a small, advisory AI analyzer for approval requests.
 
-Vanguard is a full-stack authentication platform built for a 24-hour hackathon
-challenge (Tally Code Brewers). It replaces passwords with real-time passkey
-(WebAuthn/FIDO2) sign-in, adds an offline TOTP fallback for when the primary
-channel is unavailable, and layers a trust-tiered, multi-party approval
-system on top for sensitive actions.
+> **Status:** personal project, not production-ready. State is held in memory, and several known issues are listed below.
 
-## Why
+## What it does
 
-Passwords get phished, reused, and stolen. SMS codes get intercepted via
-SIM-swapping. Vanguard's core idea: verify identity through a live, hardware-backed
-channel first (a passkey), and fall back to a channel that works with **zero
-network dependency** (a locally-computed 6-digit code) when the primary path
-isn't available — instead of falling back to something weaker.
-
-## Key features
-
-- **Real-time passwordless sign-in** — WebAuthn/FIDO2 passkeys, verified
-  server-side with `py_webauthn` (real cryptographic signature verification,
-  not a mock).
-- **Offline fallback code** — a TOTP code computed entirely client-side via
-  the Web Crypto API, no network call required to generate it.
-- **Trust-tiered actions** — routine actions need just a passkey; critical
-  actions (e.g. large transfers) require a passkey **and** a fresh TOTP
-  step-up code, enforced server-side.
-- **Multi-party approvals (M-of-N quorum)** — sensitive actions can require
-  approval from multiple people, with a named backup approver if a primary
-  approver is unreachable.
-- **IP-based abuse protection** — automatic temporary bans after repeated
-  failed verification attempts.
-- **Signed, persistent audit trail** — every verified action is written to a
-  SQLite-backed, append-only ledger, so disputes ("did they really approve
-  this?") can be resolved with evidence.
-- **Graceful recovery** — one-time recovery codes issued at registration for
-  the "device is truly gone" scenario, separate from the offline-code fallback
-  (which only requires *no network*, not *a working device*).
-- **Real-time push** — pending approvals are broadcast over WebSockets so an
-  approver sees a request the moment it's created.
-- **Undo window & panic switch** — a short grace period to cancel an
-  accidental approval, and a one-tap "this wasn't me" control that instantly
-  revokes sessions.
-
-## Tech stack
-
-| Layer | Technology |
-|---|---|
-| Backend | Python 3, FastAPI, Pydantic, Uvicorn |
-| Auth | `webauthn` (py_webauthn) for FIDO2/passkeys, `pyotp` for TOTP |
-| Storage | SQLite (audit ledger) |
-| Realtime | WebSockets (FastAPI native) |
-| Frontend | HTML5, hand-written CSS3, vanilla JavaScript (ES6+) |
-| Browser APIs | Web Authentication API, Web Crypto API, WebSocket API |
-
-## Architecture
-
-```
-Browser (frontend.html)
-   │  WebAuthn ceremony (navigator.credentials)
-   │  Client-side TOTP generation (crypto.subtle)
-   ▼
-FastAPI server (main.py)
-   │  Verifies passkey signatures (py_webauthn)
-   │  Verifies TOTP codes (pyotp)
-   │  Enforces trust-tier policy per action
-   │  Tracks per-IP failures / bans
-   ▼
-SQLite (vanguard_audit.db) — signed, append-only approval ledger
-```
-
-## Getting started
-
-```bash
-git clone https://github.com/<your-username>/vanguard.git
-cd vanguard
-pip install -r requirements.txt
-python3 -m uvicorn main:app --host 0.0.0.0 --port 8080
-```
-
-Then open **http://localhost:8080/** in a browser that supports WebAuthn
-(Chrome, Edge, Safari) with a platform authenticator available (Touch ID,
-Windows Hello, or a security key).
+- **Passkey sign-in and registration** using WebAuthn, with privileged approver roles provisioned through single-use admin invites.
+- **Vault approval flow:** the requester creates a `VAULT_TRANSFER` request. The primary approver (or a backup) decides on one device, and a second device confirms the decision by scanning a QR code and completing a passkey check.
+- **Audit ledger:** each passkey-verified action writes a receipt to SQLite (`vanguard_audit.db`).
+- **Advisory analyzer (`ai_analyzer.py`):** deterministic rules plus a local model add a note to each approval. The note never changes the approval outcome.
 
 ## Known limitations
 
-- User accounts and sessions are in-memory and reset when the server
-  restarts; only the audit ledger persists (SQLite).
-- IP-ban simulation uses a demo-only `x-demo-ip` header override since local
-  testing happens from a single machine.
-- Built for a hackathon timebox — not hardened for production deployment.
+- **In-memory state.** Sessions, approvals, and QR handshakes live in Python dictionaries. Restarting the server (including `--reload` on file save) clears them.
+- **Receipts are written too early.** The ledger entry is created during the passkey check, before the decision completes. A receipt can therefore exist for an approval that never finished. The fix is to write the receipt inside the decision handler after the status changes.
+- **The step-up TOTP code is generated in the browser.** The six-digit code shown in the QR dialog comes from a secret held by the same browser that makes the decision. For a stronger design, the code should come only from the approver's phone.
+- **Cancelling clears the handshake.** Cancel discards the session on the requesting device, so the decision cannot complete afterward.
+- **Minor:** the logo file `vanguard-logo.svg` is not served, so the page logs a 404.
 
-## License
+## AI analyzer: results
 
-MIT — see [LICENSE](LICENSE).
+`ai_analyzer.py` combines two checks:
+
+1. **Rules (code):** off-hours (00:00–05:59), any amount other than $50,000, any target other than `Escrow Node 09`, any asset other than USDC, and more than 3 approvals in the last hour.
+2. **Local model (`qwen2.5:1.5b` via Ollama, temperature 0):** asked for an independent verdict with no rule list.
+
+Evaluation on 55 labeled approvals (`labeled_cases.json` and `labeled_cases_extra.json`, labels written from `LABELING_RULES.md`):
+
+| Approach | Precision | Recall | Parse failures |
+|---|---|---|---|
+| Rules only | 1.00 | 0.57 | — |
+| Local model only | 0.00 | 0.00 | 0/55 |
+| Combined (advisory) | 1.00 | 0.57 | — |
+
+Interpretation:
+- All detections come from the rules. The model flagged none of the 30 positive cases, including all 13 judgment cases.
+- The model's reasons assumed a typical transfer amount, which this vault does not use.
+- The analyzer is therefore advisory only. The outcome is decided by the rules, and the model's note is displayed separately.
+
+Limitations of this evaluation:
+- Labels were written by the author, and some judgment cases are arguable.
+- The judgment cases vary only the requester name.
+- One small model and one prompt were tested. A larger model or a policy-aware prompt could give different results.
+
+## Running it
+
+Requirements: Python 3.9+, and [Ollama](https://ollama.com) if you want the model note.
+
+```bash
+python3 -m venv venv
+./venv/bin/python3 -m pip install fastapi uvicorn pyotp webauthn ollama
+./venv/bin/python3 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+For the model note, run `ollama pull qwen2.5:1.5b` first. If Ollama is not running, the approval still works and the note shows an error.
+
+To reproduce the evaluation:
+
+```bash
+./venv/bin/python3 evaluate.py
+```
+
+## Configuration
+
+| Variable | Purpose |
+|---|---|
+| `ADMIN_BOOTSTRAP_SECRET` | Admin secret for issuing invites. If unset, a random one is printed at startup. |
+| `PRIMARY_APPROVER` | Username of the primary approver (default `ceo`). |
+| `SECONDARY_APPROVERS` | Comma-separated backup approvers (default `coo,cfo,president`). |
+| `EXTRA_ALLOWED_ORIGINS` | Extra allowed origins, such as a tunnel URL. |
+
+## Project layout
+
+- `main.py`: server, passkey flows, approvals, proximity handshake, ledger
+- `frontend.html`: the single-page interface
+- `ai_analyzer.py`: rule checks and the model call
+- `evaluate.py`: evaluation script
+- `labeled_cases*.json`, `LABELING_RULES.md`: labeled test data and labeling rules
+- `test_cases.py`: sample approval used by the analyzer
+
+## Roadmap
+
+- Move receipt writing into the decision handler.
+- Derive the step-up code from the approver's phone, not the browser.
+- Persist state in a database instead of memory.
