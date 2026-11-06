@@ -1,3 +1,4 @@
+
 import os
 import time
 import base64
@@ -5,8 +6,7 @@ import hashlib
 import json
 import secrets
 import sqlite3
-from typing import Optional
-
+from typing import Optional       # must be defined first
 import pyotp
 import webauthn
 from webauthn.helpers.structs import (
@@ -21,6 +21,12 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import asyncio
 from ai_analyzer import analyze
+from fastapi.responses import FileResponse
+app = FastAPI()          # must be defined first
+@app.get("/vanguard-logo.svg")
+def serve_logo():
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vanguard-logo.svg")
+    return FileResponse(path, media_type="image/svg+xml")
 # ============================================================
 # 1. CONFIG
 # ============================================================
@@ -634,6 +640,11 @@ async def decide_approval(approval_id: str, payload: ApprovalDecision, request: 
         if len(approval["approved_by"]) >= approval["required_quorum"]:
             approval["status"] = "approved"
             approval["undo_until"] = time.time() + 30
+                # Only now, after the status has changed, does the decision get recorded.
+        if approval["status"] in ("approved", "denied") and proof.get("receipt"):
+            receipt = {**proof["receipt"], "meta": {**proof["receipt"]["meta"], "decision": payload.decision}}
+            DB_RECEIPTS.append(receipt)
+            persist_receipt(receipt)
     record_ip_success(ip)
     await live_updates.broadcast({"event": "approval_updated", "approval": approval})
     return approval
@@ -656,9 +667,10 @@ async def undo_approval(
     if not approval.get("undo_until") or time.time() > approval["undo_until"]:
         raise HTTPException(
             status_code=409,
-            detail="The 30-second undo window has closed.",
+            detail="The undo window has closed.",
         )
-
+    undo_receipt = None
+    operator_name = "admin"
     if x_admin_secret is not None:
         require_admin(x_admin_secret)
     else:
@@ -680,12 +692,26 @@ async def undo_approval(
                 status_code=403,
                 detail="A fresh passkey verification from an original approver is required.",
             )
+        operator_name = proof["approver"]
 
     approval["status"] = "undone"
+
+    undo_receipt = {
+        "receipt_id": base64.b64encode(os.urandom(16)).decode("utf-8").replace("=", "").upper()[:8],
+        "timestamp": time.time(),
+        "operator": operator_name,
+        "action": "undo",
+        "tier": approval.get("tier", "unknown"),
+        "step_up_used": False,
+        "meta": {"approval_id": approval_id, "decision": "undone"},
+        "context_hash": approval.get("action_hash"),
+        "hardware_proof": "N/A",
+    }
+    DB_RECEIPTS.append(undo_receipt)
+    persist_receipt(undo_receipt)
+
     await live_updates.broadcast({"event": "approval_updated", "approval": approval})
     return approval
-
-
 # ============================================================
 # PHASE 4: DUAL-CUSTODY PROXIMITY HANDSHAKE (second-device QR flow)
 # ============================================================
@@ -895,9 +921,6 @@ def action_verify(username: str, req: VerificationRequest, request: Request):
         "context_hash": pending.get("action_hash"),
         "hardware_proof": signature_b64[:24] + "..." if signature_b64 else "N/A",
     }
-    DB_RECEIPTS.append(receipt)
-    persist_receipt(receipt)
-    
     
     approval_proof = None
     undo_proof = None
@@ -919,7 +942,7 @@ def action_verify(username: str, req: VerificationRequest, request: Request):
             if not approval.get("undo_until") or time.time() > approval["undo_until"]:
                 raise HTTPException(
                     status_code=409,
-                    detail="The five-second undo window has closed.",
+                    detail="The thirty-second undo window has closed.",
                 )
 
             undo_proof = safe_b64url(24)
@@ -927,6 +950,7 @@ def action_verify(username: str, req: VerificationRequest, request: Request):
                 "approval_id": approval_id,
                 "approver": username,
                 "expires_at": min(time.time() + 60, approval["undo_until"]),
+                'receipt':receipt,
             }
 
         else:
@@ -941,6 +965,7 @@ def action_verify(username: str, req: VerificationRequest, request: Request):
                 "approval_id": approval_id,
                 "approver": username,
                 "expires_at": time.time() + 60,
+                'receipt':receipt,
             }
 
     return {

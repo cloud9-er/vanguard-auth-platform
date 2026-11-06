@@ -322,3 +322,213 @@ def test_failed_passkey_verification_increments_ip_failures(monkeypatch):
     assert "Signature verification failed" in response.json()["detail"]
     assert main.DB_IP_ACTIVITY[ip]["failures"] == 1
 
+def test_undo_rejects_unauthenticated_request(monkeypatch):
+    import time
+
+    approval_id = "test-undo-unauthorized"
+
+    approval = {
+        "approval_id": approval_id,
+        "status": "approved",
+        "approved_by": ["ceo"],
+        "undo_until": time.time() + 5,
+    }
+
+    monkeypatch.setitem(main.DB_APPROVALS, approval_id, approval)
+
+    response = client.post(f"/api/approvals/{approval_id}/undo")
+
+    assert response.status_code == 403
+    assert main.DB_APPROVALS[approval_id]["status"] == "approved"
+
+def test_undo_rejects_invalid_admin_secret(monkeypatch):
+    import time
+
+    approval_id = "test-undo-invalid-admin"
+    monkeypatch.setattr(main, "ADMIN_BOOTSTRAP_SECRET", "correct-secret")
+    monkeypatch.setitem(main.DB_APPROVALS, approval_id, {
+        "approval_id": approval_id,
+        "status": "approved",
+        "approved_by": ["ceo"],
+        "undo_until": time.time() + 5,
+    })
+
+    response = client.post(
+        f"/api/approvals/{approval_id}/undo",
+        headers={"x-admin-secret": "wrong-secret"},
+    )
+
+    assert response.status_code == 403
+    assert main.DB_APPROVALS[approval_id]["status"] == "approved"
+
+
+def test_undo_accepts_valid_admin_secret(monkeypatch):
+    import time
+
+    approval_id = "test-undo-valid-admin"
+    monkeypatch.setattr(main, "ADMIN_BOOTSTRAP_SECRET", "correct-secret")
+    monkeypatch.setitem(main.DB_APPROVALS, approval_id, {
+        "approval_id": approval_id,
+        "status": "approved",
+        "approved_by": ["ceo"],
+        "undo_until": time.time() + 5,
+    })
+
+    response = client.post(
+        f"/api/approvals/{approval_id}/undo",
+        headers={"x-admin-secret": "correct-secret"},
+    )
+
+    assert response.status_code == 200
+    assert main.DB_APPROVALS[approval_id]["status"] == "undone"
+def test_undo_accepts_valid_original_approver_proof(monkeypatch):
+    import time
+
+    approval_id = "test-undo-valid-proof"
+    proof_token = "valid-proof-token"
+
+    monkeypatch.setitem(main.DB_APPROVALS, approval_id, {
+        "approval_id": approval_id,
+        "status": "approved",
+        "approved_by": ["ceo"],
+        "undo_until": time.time() + 5,
+    })
+
+    monkeypatch.setitem(main.DB_UNDO_PROOFS, proof_token, {
+        "approval_id": approval_id,
+        "approver": "ceo",
+        "expires_at": time.time() + 60,
+    })
+
+    response = client.post(
+        f"/api/approvals/{approval_id}/undo",
+        json={"proof": proof_token},
+    )
+
+    assert response.status_code == 200
+    assert main.DB_APPROVALS[approval_id]["status"] == "undone"
+    assert proof_token not in main.DB_UNDO_PROOFS
+
+
+def test_undo_rejects_proof_for_different_approval(monkeypatch):
+    import time
+
+    approval_id = "test-undo-proof-mismatch"
+    proof_token = "mismatched-proof-token"
+
+    monkeypatch.setitem(main.DB_APPROVALS, approval_id, {
+        "approval_id": approval_id,
+        "status": "approved",
+        "approved_by": ["ceo"],
+        "undo_until": time.time() + 5,
+    })
+
+    monkeypatch.setitem(main.DB_UNDO_PROOFS, proof_token, {
+        "approval_id": "some-other-approval",
+        "approver": "ceo",
+        "expires_at": time.time() + 60,
+    })
+
+    response = client.post(
+        f"/api/approvals/{approval_id}/undo",
+        json={"proof": proof_token},
+    )
+
+    assert response.status_code == 403
+    assert main.DB_APPROVALS[approval_id]["status"] == "approved"
+
+
+def test_undo_rejects_proof_from_non_approver(monkeypatch):
+    import time
+
+    approval_id = "test-undo-non-approver"
+    proof_token = "non-approver-proof-token"
+
+    monkeypatch.setitem(main.DB_APPROVALS, approval_id, {
+        "approval_id": approval_id,
+        "status": "approved",
+        "approved_by": ["ceo"],
+        "undo_until": time.time() + 5,
+    })
+
+    monkeypatch.setitem(main.DB_UNDO_PROOFS, proof_token, {
+        "approval_id": approval_id,
+        "approver": "someone-else",
+        "expires_at": time.time() + 60,
+    })
+
+    response = client.post(
+        f"/api/approvals/{approval_id}/undo",
+        json={"proof": proof_token},
+    )
+
+    assert response.status_code == 403
+    assert main.DB_APPROVALS[approval_id]["status"] == "approved"
+
+
+def test_undo_rejects_expired_proof(monkeypatch):
+    import time
+
+    approval_id = "test-undo-expired-proof"
+    proof_token = "expired-proof-token"
+
+    monkeypatch.setitem(main.DB_APPROVALS, approval_id, {
+        "approval_id": approval_id,
+        "status": "approved",
+        "approved_by": ["ceo"],
+        "undo_until": time.time() + 5,
+    })
+
+    monkeypatch.setitem(main.DB_UNDO_PROOFS, proof_token, {
+        "approval_id": approval_id,
+        "approver": "ceo",
+        "expires_at": time.time() - 1,
+    })
+
+    response = client.post(
+        f"/api/approvals/{approval_id}/undo",
+        json={"proof": proof_token},
+    )
+
+    assert response.status_code == 403
+    assert main.DB_APPROVALS[approval_id]["status"] == "approved"
+
+
+def test_undo_proof_cannot_be_reused(monkeypatch):
+    import time
+
+    approval_id = "test-undo-proof-reuse"
+    proof_token = "single-use-proof-token"
+
+    approval = {
+        "approval_id": approval_id,
+        "status": "approved",
+        "approved_by": ["ceo"],
+        "undo_until": time.time() + 5,
+    }
+    monkeypatch.setitem(main.DB_APPROVALS, approval_id, approval)
+
+    monkeypatch.setitem(main.DB_UNDO_PROOFS, proof_token, {
+        "approval_id": approval_id,
+        "approver": "ceo",
+        "expires_at": time.time() + 60,
+    })
+
+    first_response = client.post(
+        f"/api/approvals/{approval_id}/undo",
+        json={"proof": proof_token},
+    )
+
+    assert first_response.status_code == 200
+    assert proof_token not in main.DB_UNDO_PROOFS
+
+    # Restore the approval state to isolate whether the proof was consumed.
+    approval["status"] = "approved"
+
+    second_response = client.post(
+        f"/api/approvals/{approval_id}/undo",
+        json={"proof": proof_token},
+    )
+
+    assert second_response.status_code == 403
+    assert approval["status"] == "approved"

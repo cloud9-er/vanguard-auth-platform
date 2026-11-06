@@ -29,7 +29,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV "/Users/manchanchamjessica/tally_auth_platform/venv"
+set -gx VIRTUAL_ENV "/Users/manchanchamjessica/Vanguard/venv"
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/bin" $PATH

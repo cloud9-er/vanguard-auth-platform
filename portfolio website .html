@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jessica Mancha — Dossier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0B0F14;
+    --panel:#121922;
+    --panel-2:#0E141B;
+    --line:#243040;
+    --amber:#FFB000;
+    --amber-dim:#8a6209;
+    --teal:#4FD1C5;
+    --text:#E4E9EF;
+    --muted:#6b7c8e;
+    --danger:#FF5D5D;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--ink);
+    color:var(--text);
+    font-family:var(--sans);
+    line-height:1.5;
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(255,176,0,0.05), transparent 40%),
+      radial-gradient(circle at 80% 60%, rgba(79,209,197,0.05), transparent 45%);
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--amber); color:var(--ink);}
+
+  /* scrollbar */
+  ::-webkit-scrollbar{width:10px;}
+  ::-webkit-scrollbar-track{background:var(--ink);}
+  ::-webkit-scrollbar-thumb{background:var(--line); border-radius:0;}
+
+  a{color:var(--teal); text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  a:focus-visible, button:focus-visible, .quest:focus-visible{outline:2px solid var(--amber); outline-offset:3px;}
+
+  .scanline{
+    position:fixed; inset:0; pointer-events:none; z-index:50; opacity:.035;
+    background:repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 3px);
+  }
+
+  /* ---------- BOOT SEQUENCE ---------- */
+  #boot{
+    position:fixed; inset:0; background:var(--ink); z-index:100;
+    font-family:var(--mono); color:var(--amber); font-size:14px;
+    padding:40px; display:flex; flex-direction:column; justify-content:center;
+    max-width:720px; margin:0 auto;
+  }
+  #boot .line{opacity:0; white-space:pre-wrap; margin-bottom:4px;}
+  #boot .cursor{display:inline-block; width:8px; height:14px; background:var(--amber); animation:blink 1s steps(1) infinite; vertical-align:-2px;}
+  @keyframes blink{50%{opacity:0;}}
+  #boot.hide{display:none;}
+  .skip-boot{
+    position:fixed; bottom:24px; right:24px; z-index:101; font-family:var(--mono);
+    background:transparent; border:1px solid var(--amber-dim); color:var(--amber);
+    padding:8px 14px; font-size:12px; cursor:pointer; letter-spacing:.05em;
+  }
+  .skip-boot:hover{background:var(--amber); color:var(--ink);}
+
+  /* ---------- LAYOUT ---------- */
+  .wrap{max-width:920px; margin:0 auto; padding:0 24px;}
+  main{opacity:0; transition:opacity .6s ease;}
+  main.show{opacity:1;}
+
+  header.hero{
+    padding:64px 0 40px; border-bottom:1px solid var(--line);
+  }
+  .eyebrow{
+    font-family:var(--mono); color:var(--teal); font-size:12px; letter-spacing:.15em;
+    text-transform:uppercase; margin-bottom:14px;
+  }
+  .eyebrow::before{content:"▸ "; color:var(--amber);}
+  h1{
+    font-family:var(--mono); font-size:clamp(32px,5.5vw,52px); font-weight:700;
+    letter-spacing:-0.01em; margin-bottom:8px;
+  }
+  .role{color:var(--muted); font-size:17px; max-width:56ch; margin-bottom:28px;}
+  .role b{color:var(--text); font-weight:600;}
+
+  .hud{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:28px;}
+  .hud-item{
+    font-family:var(--mono); font-size:12px; border:1px solid var(--line);
+    background:var(--panel); padding:8px 12px; color:var(--muted);
+  }
+  .hud-item b{color:var(--amber); font-weight:600;}
+
+  .xpbar-wrap{max-width:420px; margin-bottom:6px;}
+  .xpbar-label{display:flex; justify-content:space-between; font-family:var(--mono); font-size:11px; color:var(--muted); margin-bottom:6px;}
+  .xpbar{height:8px; background:var(--panel-2); border:1px solid var(--line); position:relative; overflow:hidden;}
+  .xpbar-fill{height:100%; background:linear-gradient(90deg, var(--amber-dim), var(--amber)); width:0%; transition:width 1.4s cubic-bezier(.2,.8,.2,1);}
+
+  .links{display:flex; gap:18px; margin-top:24px; flex-wrap:wrap; font-family:var(--mono); font-size:13px;}
+  .links a{border-bottom:1px dashed var(--amber-dim); padding-bottom:2px;}
+
+  section{padding:56px 0; border-bottom:1px solid var(--line);}
+  section:last-of-type{border-bottom:none;}
+  .sec-head{display:flex; align-items:baseline; gap:12px; margin-bottom:28px;}
+  .sec-num{font-family:var(--mono); color:var(--amber-dim); font-size:13px;}
+  h2{font-family:var(--mono); font-size:22px; letter-spacing:.02em;}
+  .sec-sub{color:var(--muted); font-size:13px; font-family:var(--mono); margin-left:auto;}
+
+  /* stats */
+  .stats-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:22px 32px;}
+  .stat-label{display:flex; justify-content:space-between; font-family:var(--mono); font-size:13px; margin-bottom:7px;}
+  .stat-label span:last-child{color:var(--muted);}
+  .stat-bar{height:6px; background:var(--panel-2); border:1px solid var(--line);}
+  .stat-fill{height:100%; background:var(--teal); width:0%; transition:width 1.2s ease;}
+  .stat-fill.amber{background:var(--amber);}
+
+  .kit{display:flex; flex-wrap:wrap; gap:8px; margin-top:32px;}
+  .kit-item{
+    font-family:var(--mono); font-size:12px; border:1px solid var(--line);
+    padding:6px 11px; color:var(--muted); background:var(--panel);
+  }
+
+  /* quests */
+  .quest{
+    border:1px solid var(--line); background:var(--panel); margin-bottom:18px;
+    cursor:pointer; transition:border-color .2s ease;
+  }
+  .quest:hover{border-color:var(--amber-dim);}
+  .quest-head{display:flex; align-items:center; gap:16px; padding:18px 20px;}
+  .quest-diff{
+    font-family:var(--mono); font-size:10px; letter-spacing:.1em; padding:4px 8px;
+    border:1px solid var(--danger); color:var(--danger); flex-shrink:0;
+  }
+  .quest-diff.med{border-color:var(--amber); color:var(--amber);}
+  .quest-title-wrap{flex:1;}
+  .quest-title{font-family:var(--mono); font-size:16px; font-weight:600; color:var(--text);}
+  .quest-tags{font-size:12px; color:var(--muted); margin-top:3px; font-family:var(--mono);}
+  .quest-chevron{font-family:var(--mono); color:var(--muted); transition:transform .25s ease;}
+  .quest.open .quest-chevron{transform:rotate(90deg); color:var(--amber);}
+  .quest-body{max-height:0; overflow:hidden; transition:max-height .35s ease;}
+  .quest.open .quest-body{max-height:600px;}
+  .quest-body-inner{padding:0 20px 22px 20px;}
+  .quest-body-inner ul{list-style:none; margin-bottom:14px;}
+  .quest-body-inner li{
+    font-size:14px; color:var(--muted); padding-left:20px; position:relative; margin-bottom:8px;
+  }
+  .quest-body-inner li::before{content:"◆"; position:absolute; left:0; color:var(--teal); font-size:9px; top:5px;}
+  .quest-links{display:flex; gap:16px; font-family:var(--mono); font-size:12px;}
+
+  /* side quest / guild */
+  .card{border:1px solid var(--line); background:var(--panel); padding:22px 24px; margin-bottom:16px;}
+  .card-title{font-family:var(--mono); font-weight:600; font-size:15px; margin-bottom:4px;}
+  .card-meta{font-family:var(--mono); font-size:12px; color:var(--muted); margin-bottom:12px;}
+  .card ul{list-style:none;}
+  .card li{font-size:14px; color:var(--muted); padding-left:20px; position:relative; margin-bottom:8px;}
+  .card li::before{content:"▸"; position:absolute; left:0; color:var(--amber);}
+
+  /* achievements */
+  .badges{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px;}
+  .badge{
+    border:1px solid var(--amber-dim); background:linear-gradient(180deg, rgba(255,176,0,0.06), transparent);
+    padding:16px; display:flex; gap:12px; align-items:flex-start;
+  }
+  .badge-icon{
+    font-family:var(--mono); color:var(--amber); font-size:18px; border:1px solid var(--amber-dim);
+    width:34px; height:34px; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .badge-text{font-size:13px; color:var(--text);}
+  .badge-label{font-family:var(--mono); font-size:10px; color:var(--amber); letter-spacing:.08em; margin-bottom:3px;}
+
+  /* origin / education */
+  .origin{display:grid; grid-template-columns:1fr 1fr; gap:24px;}
+  @media (max-width:640px){.origin{grid-template-columns:1fr;}}
+
+  footer{padding:48px 0 80px; text-align:center;}
+  footer .eyebrow{justify-content:center;}
+  footer p{color:var(--muted); font-size:13px; margin-bottom:20px; font-family:var(--mono);}
+  .cta{
+    display:inline-block; font-family:var(--mono); border:1px solid var(--amber); color:var(--amber);
+    padding:12px 26px; font-size:13px; letter-spacing:.05em; transition:.2s ease;
+  }
+  .cta:hover{background:var(--amber); color:var(--ink); text-decoration:none;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.01ms !important; transition-duration:0.01ms !important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="scanline"></div>
+
+<div id="boot">
+  <div id="boot-lines"></div>
+</div>
+<button class="skip-boot" id="skipBoot">SKIP ▸</button>
+
+<main id="main">
+  <div class="wrap">
+
+    <header class="hero">
+      <div class="eyebrow">access granted // dossier unlocked</div>
+      <h1>Jessica Mancha</h1>
+      <p class="role"><b>Computer Science & Engineering</b> student specializing in <b>Cybersecurity</b>, currently leveling up in software engineering fundamentals. Sanskaram University, expected May 2029.</p>
+
+      <div class="hud">
+        <div class="hud-item">CLASS: <b>Cybersecurity Track</b></div>
+        <div class="hud-item">GUILD: <b>Sanskaram University</b></div>
+        <div class="hud-item">POWER LEVEL: <b>4.6 / 5.0 GPA</b></div>
+      </div>
+
+      <div class="xpbar-wrap">
+        <div class="xpbar-label"><span>LVL 2 — SOPHOMORE</span><span>XP TO LVL 3</span></div>
+        <div class="xpbar"><div class="xpbar-fill" id="xpFill" style="width:0%"></div></div>
+      </div>
+
+      <div class="links">
+        <a href="mailto:manchancham@gmail.com">✉ manchancham@gmail.com</a>
+        <a href="https://github.com/cloud9-er" target="_blank" rel="noopener">⌥ github.com/cloud9-er</a>
+        <a href="https://www.linkedin.com/in/ncham-mancha-b19a5b39a/" target="_blank" rel="noopener">in/ ncham-mancha</a>
+      </div>
+    </header>
+
+    <section id="stats">
+      <div class="sec-head">
+        <span class="sec-num">01</span><h2>Attributes</h2>
+        <span class="sec-sub">core stack</span>
+      </div>
+      <div class="stats-grid">
+        <div>
+          <div class="stat-label"><span>Python</span><span>Primary</span></div>
+          <div class="stat-bar"><div class="stat-fill amber" data-pct="92"></div></div>
+        </div>
+        <div>
+          <div class="stat-label"><span>Security & Auth</span><span>Specialization</span></div>
+          <div class="stat-bar"><div class="stat-fill amber" data-pct="85"></div></div>
+        </div>
+        <div>
+          <div class="stat-label"><span>JavaScript</span><span>Working</span></div>
+          <div class="stat-bar"><div class="stat-fill" data-pct="70"></div></div>
+        </div>
+        <div>
+          <div class="stat-label"><span>C++</span><span>Coursework</span></div>
+          <div class="stat-bar"><div class="stat-fill" data-pct="68"></div></div>
+        </div>
+        <div>
+          <div class="stat-label"><span>SQL</span><span>Working</span></div>
+          <div class="stat-bar"><div class="stat-fill" data-pct="72"></div></div>
+        </div>
+        <div>
+          <div class="stat-label"><span>Software Eng. Fundamentals</span><span>Leveling up</span></div>
+          <div class="stat-bar"><div class="stat-fill" data-pct="55"></div></div>
+        </div>
+      </div>
+
+      <div class="kit">
+        <div class="kit-item">FastAPI</div>
+        <div class="kit-item">WebAuthn / FIDO2</div>
+        <div class="kit-item">Pydantic</div>
+        <div class="kit-item">BeautifulSoup</div>
+        <div class="kit-item">Streamlit</div>
+        <div class="kit-item">SQLite</div>
+        <div class="kit-item">WebSockets</div>
+        <div class="kit-item">Uvicorn</div>
+        <div class="kit-item">Git / GitHub</div>
+      </div>
+    </section>
+
+    <section id="quests">
+      <div class="sec-head">
+        <span class="sec-num">02</span><h2>Quest Log</h2>
+        <span class="sec-sub">2 completed</span>
+      </div>
+
+      <div class="quest" tabindex="0" role="button" aria-expanded="false">
+        <div class="quest-head" onclick="toggleQuest(this.parentElement)">
+          <div class="quest-diff">HARD</div>
+          <div class="quest-title-wrap">
+            <div class="quest-title">Vanguard — Passwordless Auth Platform</div>
+            <div class="quest-tags">FastAPI · WebAuthn · WebSockets · SQLite</div>
+          </div>
+          <div class="quest-chevron">▸</div>
+        </div>
+        <div class="quest-body">
+          <div class="quest-body-inner">
+            <ul>
+              <li>Built a passwordless authentication platform enabling secure access control across 4 privileged roles.</li>
+              <li>Shipped 15+ REST and WebSocket endpoints covering passkey registration, approval workflows, and real-time notifications.</li>
+              <li>Designed a dual-device approval flow with 90-second proximity verification, using WebAuthn, TOTP, and recovery codes.</li>
+              <li>Added role-based authorization, single-use invitations, audit logging, and temporary IP lockout to harden against repeated unauthorized access.</li>
+            </ul>
+            <div class="quest-links">
+              <a href="https://github.com/cloud9-er/vanguard-auth-platform" target="_blank" rel="noopener">◆ View source</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="quest" tabindex="0" role="button" aria-expanded="false">
+        <div class="quest-head" onclick="toggleQuest(this.parentElement)">
+          <div class="quest-diff med">MEDIUM</div>
+          <div class="quest-title-wrap">
+            <div class="quest-title">Book Intelligence Platform</div>
+            <div class="quest-tags">Python · BeautifulSoup · Streamlit</div>
+          </div>
+          <div class="quest-chevron">▸</div>
+        </div>
+        <div class="quest-body">
+          <div class="quest-body-inner">
+            <ul>
+              <li>Built a data pipeline that scraped 1,000 books across 50 pages, producing structured datasets for analysis.</li>
+              <li>Built modular scraping and storage components with configurable request handling for maintainability and reuse.</li>
+              <li>Created a weighted recommendation algorithm combining price and rating to rank high-value books automatically.</li>
+              <li>Designed an interactive Streamlit dashboard with search, filtering, sorting, and visualizations.</li>
+            </ul>
+            <div class="quest-links">
+              <a href="https://cloud9-er.github.io/BestBookBuy" target="_blank" rel="noopener">◆ Live demo</a>
+              <a href="https://github.com/cloud9-er/BestBookBuy" target="_blank" rel="noopener">◆ View source</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="sidequests">
+      <div class="sec-head">
+        <span class="sec-num">03</span><h2>Side Quests</h2>
+        <span class="sec-sub">experience</span>
+      </div>
+      <div class="card">
+        <div class="card-title">Community Computer Science Volunteer</div>
+        <div class="card-meta">Summer 2025</div>
+        <ul>
+          <li>Taught 16 children foundational programming concepts — logical thinking, problem decomposition, and basic coding structures.</li>
+          <li>Designed beginner-friendly coding activities that strengthened students' analytical reasoning and structured problem-solving.</li>
+          <li>Created an accessible, supportive environment that built curiosity and confidence for first-time coders.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="guild">
+      <div class="sec-head">
+        <span class="sec-num">04</span><h2>Guild Leadership</h2>
+        <span class="sec-sub">community</span>
+      </div>
+      <div class="card">
+        <div class="card-title">Founder & President, STEM Club</div>
+        <div class="card-meta">White Diamonds Academy · 2024–2025</div>
+        <ul>
+          <li>Founded and grew the club to 45 members over 2 years, building a hands-on engineering and technology community.</li>
+          <li>Led weekly meetings and coordinated member-driven project planning.</li>
+          <li>Directed design and construction of a solar-powered toy car, presented at the school's graduation ceremony.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="achievements">
+      <div class="sec-head">
+        <span class="sec-num">05</span><h2>Achievements Unlocked</h2>
+        <span class="sec-sub">4 badges</span>
+      </div>
+      <div class="badges">
+        <div class="badge">
+          <div class="badge-icon">★</div>
+          <div class="badge-text"><div class="badge-label">TOP TIER</div>Top 0.24% in UTME 2025</div>
+        </div>
+        <div class="badge">
+          <div class="badge-icon">▲</div>
+          <div class="badge-text"><div class="badge-label">CHAMPION</div>Winner, Diamondpedia 2024 Math Competition</div>
+        </div>
+        <div class="badge">
+          <div class="badge-icon">✦</div>
+          <div class="badge-text"><div class="badge-label">HONORS</div>4 Distinctions + 4 Upper Credits, Senior Certificate Exam 2025</div>
+        </div>
+        <div class="badge">
+          <div class="badge-icon">◆</div>
+          <div class="badge-text"><div class="badge-label">GRANT</div>Governor Merit-Based Scholarship recipient</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="origin">
+      <div class="sec-head">
+        <span class="sec-num">06</span><h2>Origin Story</h2>
+        <span class="sec-sub">education</span>
+      </div>
+      <div class="origin">
+        <div class="card">
+          <div class="card-title">B.S. Computer Science & Engineering</div>
+          <div class="card-meta">Sanskaram University · Expected May 2029 · GPA 4.6 / 5.0</div>
+          <ul>
+            <li>Cybersecurity specialization</li>
+            <li>Data Structures & Algorithms, OOP, Software Engineering Principles</li>
+            <li>Web Development, Applied CS, Computer Networking</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">High School Diploma, Physical Sciences</div>
+          <div class="card-meta">White Diamonds Academy · 2022–2025 · GPA 4.59 / 5.0</div>
+          <ul>
+            <li>Founded the school's STEM Club</li>
+            <li>Governor Merit-Based Scholarship recipient</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <footer>
+    <div class="wrap">
+      <div class="eyebrow">next objective</div>
+      <p>Open to internships & collaborations in security engineering and software development.</p>
+      <a class="cta" href="mailto:manchancham@gmail.com">◆ Initiate contact</a>
+    </div>
+  </footer>
+</main>
+
+<script>
+  const bootText = [
+    "> establishing secure session...",
+    "> verifying credentials [WebAuthn / FIDO2]",
+    "> ",
+    "  device 1: ▓▓▓▓▓▓▓▓▓▓ OK",
+    "  device 2: ▓▓▓▓▓▓▓▓▓▓ OK",
+    "> proximity check... passed",
+    "> ",
+    "ACCESS GRANTED",
+    "> loading dossier: J. MANCHA..."
+  ];
+
+  const bootEl = document.getElementById('boot-lines');
+  const bootWrap = document.getElementById('boot');
+  const mainEl = document.getElementById('main');
+  const skipBtn = document.getElementById('skipBoot');
+  let booted = false;
+
+  function finishBoot(){
+    if(booted) return;
+    booted = true;
+    bootWrap.classList.add('hide');
+    mainEl.classList.add('show');
+    animateBars();
+  }
+
+  function runBoot(){
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(prefersReduced){ finishBoot(); return; }
+    let delay = 0;
+    bootText.forEach((line, i) => {
+      const div = document.createElement('div');
+      div.className = 'line';
+      bootEl.appendChild(div);
+      setTimeout(() => {
+        div.style.opacity = 1;
+        div.textContent = line;
+        if(i === bootText.length - 1){
+          const c = document.createElement('span');
+          c.className = 'cursor';
+          div.appendChild(c);
+        }
+      }, delay);
+      delay += line.length > 0 ? 180 : 80;
+    });
+    setTimeout(finishBoot, delay + 500);
+  }
+
+  skipBtn.addEventListener('click', finishBoot);
+
+  function animateBars(){
+    document.getElementById('xpFill').style.width = '64%';
+    document.querySelectorAll('.stat-fill').forEach(el => {
+      const pct = el.getAttribute('data-pct');
+      setTimeout(() => { el.style.width = pct + '%'; }, 200);
+    });
+  }
+
+  function toggleQuest(q){
+    const isOpen = q.classList.contains('open');
+    q.classList.toggle('open');
+    q.setAttribute('aria-expanded', String(!isOpen));
+  }
+  document.querySelectorAll('.quest').forEach(q => {
+    q.addEventListener('keydown', e => {
+      if(e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        toggleQuest(q);
+      }
+    });
+  });
+
+  runBoot();
+</script>
+
+</body>
+</html>
